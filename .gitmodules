@@ -1,0 +1,3 @@
+[submodule "hwcomponents_neurosim/DNN_NeuroSim_V1.3"]
+	path = hwcomponents_neurosim/DNN_NeuroSim_V1.3
+	url = https://github.com/neurosim/DNN_NeuroSim_V1.3.git
