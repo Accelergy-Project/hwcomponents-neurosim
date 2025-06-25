@@ -63,3 +63,6 @@ site/
 *.swp
 *~ 
 *.o
+
+# NeuroSim
+hwcomponents_neurosim/NeuroSim/*

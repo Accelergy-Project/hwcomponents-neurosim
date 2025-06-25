@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-from setuptools.command.build_ext import build_ext
+from setuptools.command.build import build
 import sys
 import subprocess
 import os
@@ -11,14 +11,25 @@ def readme():
         return f.read()
 
 
-class Build(build_ext):
-    """Calls makefile"""
+class CustomBuildCommand(build):
+    """Custom build command that runs make build before the normal build process."""
 
     def run(self):
-        print("Building NeuroSim")
-        if subprocess.call(["make", "make"]) != 0:
-            sys.exit(-1)
-        build_ext.run(self)
+        try:
+            print("Running 'make build'...")
+            subprocess.check_call(["make", "build"], cwd=os.path.dirname(os.path.realpath(__file__)))
+            print("'make build' completed successfully")
+        except subprocess.CalledProcessError as e:
+            print(f"Error running 'make build': {e}")
+            sys.exit(1)
+        except FileNotFoundError:
+            print("Warning: 'make' command not found. Skipping build step.")
+        except Exception as e:
+            print(f"Unexpected error running 'make build': {e}")
+            sys.exit(1)
+        
+        # Call the parent build command
+        super().run()
 
 
 setup(
@@ -50,6 +61,6 @@ setup(
     py_modules=["hwcomponents_neurosim"],
     entry_points={},
     cmdclass={
-        "build_ext": Build,
+        "build": CustomBuildCommand,
     },
 )
