@@ -4,7 +4,7 @@ import sys
 import os
 from typing import Dict
 from textwrap import dedent
-from hwcomponents import EnergyAreaEstimator, actionDynamicEnergy
+from hwcomponents import EnergyAreaModel, actionDynamicEnergy
 import hwcomponents_neurosim.neurointerface as neurointerface
 
 # ==================================================================================================
@@ -197,7 +197,7 @@ SUPPORTED_CLASSES = {
 logger = None
 
 
-class NeurosimPlugInComponent(EnergyAreaEstimator):
+class NeurosimPlugInComponent(EnergyAreaModel):
     component_name = "_override_this_name_"
     percent_accuracy_0_to_100 = 70
     _get_stats_func = None  # To be overridden by child classes

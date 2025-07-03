@@ -54,7 +54,7 @@ setup(
             "cells/*",
             "NeuroSim/main",
             "default_config.cfg",
-            "neurosim.estimator.yaml",
+            "neurosim.model.yaml",
         ],
     },
     include_package_data=True,

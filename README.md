@@ -33,7 +33,7 @@ Clone the repository and install with pip:
 ```bash
 git clone --recurse-submodules https://github.com/Accelergy-Project/hwcomponents-neurosim.git
 cd hwcomponents-neurosim
-python3 setup.py build_ext && pip install .
+pip install .
 
 # Check that the installation is successful
 hwc --list | grep array_col_drivers
