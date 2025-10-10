@@ -12,7 +12,7 @@ import hwcomponents_neurosim.neurointerface as neurointerface
 # ==================================================================================================
 SCRIPT_DIR = os.path.realpath(os.path.dirname(__file__))
 DEBUG = False
-ACCURACY = 70
+PRIORITY = 0.7
 PERMITTED_TECH_NODES = [7e-9, 10e-9, 14e-9, 22e-9, 32e-9, 45e-9, 65e-9, 90e-9, 130e-9]
 SAMPLE_CELLS = [
     f.split(".")[0]
@@ -199,7 +199,7 @@ logger = None
 
 class NeurosimPlugInComponent(EnergyAreaModel):
     component_name = "_override_this_name_"
-    percent_accuracy_0_to_100 = 70
+    priority = PRIORITY
     _get_stats_func = None  # To be overridden by child classes
     _params = []  # To be overridden by child classes
 
