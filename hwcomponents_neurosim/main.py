@@ -197,7 +197,64 @@ SUPPORTED_CLASSES = {
 logger = None
 
 
-class NeurosimPlugInComponent(EnergyAreaModel):
+class _NeurosimPlugInComponent(EnergyAreaModel):
+    """
+    A base class for Neurosim plug-in components.
+
+    Parameters
+    ----------
+    cell_config : str
+        The path to the  cell config file to use.
+    tech_node : str
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    rows : int
+        The number of rows in the CiM array.
+    cols : int
+        The number of columns in the CiM array.
+    cols_active_at_once : int
+        The number of columns active at once. If this is less than the number of
+        columns, the array is activated in multiple steps.
+    adc_resolution : int, optional
+        The resolution of the ADC. Resolution of 0 means no ADC, and the CiM array
+        outputs leave as analog signals.
+    read_pulse_width : float, optional
+        The width of the read pulse in seconds. This is the duration for which the row
+        is asserted when reading from the CiM array.
+    voltage_dac_bits : int, optional
+        The number of bits of a voltage DAC, which outputs analog signals by setting
+        voltage to a given value.
+    temporal_dac_bits : int, optional
+        The number of bits of a temporal DAC, which outputs analog signals by setting
+        the pulse width of a signal. Read pulse width will be multiplied by
+        (2^temporal_dac_bits - 1).
+    temporal_spiking : bool, optional
+        Whether to use a spiking (#pulses) or a PWM (pulse length) approach for temporal
+        DAC.
+    voltage : float, optional
+        The supply voltage in volts.
+    threshold_voltage : float, optional
+        The threshold voltage of all transistors, in volts.
+    sequential : bool, optional
+        Whether to use a sequential approach for the CiM array, meaing that rows are
+        activated one at a time.
+    average_input_value : float, optional
+        The average input value to a row. Must be between 0 and 1.
+    average_cell_value : float, optional
+        The average value of a cell. Must be between 0 and 1.
+    n_bits : int, optional
+        The number of bits of digital components such as adders.
+    shift_register_n_bits : int, optional
+        The number of bits of shift registers.
+    pool_window : int, optional
+        Used only in max pool units. The window size of max pooling.
+    n_adder_tree_inputs : int, optional
+        Used only in adder trees. The number of inputs to the adder tree.
+    n_mux_inputs : int, optional
+        Used only in muxes. The number of inputs to the mux.
+    """
+
     component_name = "_override_this_name_"
     priority = PRIORITY
     _get_stats_func = None  # To be overridden by child classes
@@ -206,7 +263,7 @@ class NeurosimPlugInComponent(EnergyAreaModel):
     def __init__(
         self,
         cell_config: str,
-        tech_node: str,
+        tech_node: float,
         global_cycle_seconds: float = 100e-9,
         rows: int = 32,
         cols: int = 32,
@@ -487,91 +544,228 @@ class NeurosimPlugInComponent(EnergyAreaModel):
             return self.name[0]
 
     @actionDynamicEnergy
-    def read(self):
+    def read(self) -> float:
         return self.query_neurosim(self._get_component_name())["Read Energy"]
 
     @actionDynamicEnergy
-    def compute(self):
+    def compute(self) -> float:
         return self.read()
 
     @actionDynamicEnergy
-    def add(self):
+    def add(self) -> float:
         return self.read()
 
     @actionDynamicEnergy
-    def shift_add(self):
+    def convert(self) -> float:
         return self.read()
 
     @actionDynamicEnergy
-    def convert(self):
-        return self.read()
-
-    @actionDynamicEnergy
-    def write(self):
+    def write(self) -> float:
         return self.query_neurosim(self._get_component_name())["Write Energy"]
 
     @actionDynamicEnergy
-    def update(self):
+    def update(self) -> float:
         return self.write()
 
 
-class NORGate(NeurosimPlugInComponent):
+class NORGate(_NeurosimPlugInComponent):
+    """
+    A single NOR gate.
+
+    Parameters
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+
+    Attributes
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    """
+
+
+
     component_name = "nor_gate"
     _get_stats_func = neurointerface.nor_gate_stats
     _params = ["tech_node", "global_cycle_seconds"]
 
-    def __init__(self, tech_node: str, global_cycle_seconds: float):
+    def __init__(self, tech_node: float, global_cycle_seconds: float):
         super().__init__(
             tech_node=tech_node,
             global_cycle_seconds=global_cycle_seconds,
         )
 
+    @actionDynamicEnergy
+    def read(self) -> float:
+        """
+        Returns the energy for one NOR operation in Joules.
 
-class NANDGate(NeurosimPlugInComponent):
+        Returns
+        -------
+        float
+            The energy for one NOR operation in Joules.
+        """
+        return super().read()
+
+
+class NANDGate(_NeurosimPlugInComponent):
+    """
+    A single NAND gate.
+
+    Parameters
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+
+    Attributes
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    """
+
     component_name = "nand_gate"
     _get_stats_func = neurointerface.nand_gate_stats
     _params = ["tech_node", "global_cycle_seconds"]
 
-    def __init__(self, tech_node: str, global_cycle_seconds: float):
+    def __init__(self, tech_node: float, global_cycle_seconds: float):
         super().__init__(
             tech_node=tech_node,
             global_cycle_seconds=global_cycle_seconds,
         )
 
+    @actionDynamicEnergy
+    def read(self) -> float:
+        """
+        Returns the energy for one NAND operation in Joules.
+        """
+        return super().read()
 
-class NOTGate(NeurosimPlugInComponent):
+
+class NOTGate(_NeurosimPlugInComponent):
+    """
+    A single NOT gate.
+
+    Parameters
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+
+    Attributes
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    """
+
     component_name = "not_gate"
     _get_stats_func = neurointerface.not_gate_stats
     _params = ["tech_node", "global_cycle_seconds"]
 
-    def __init__(self, tech_node: str, global_cycle_seconds: float):
+    def __init__(self, tech_node: float, global_cycle_seconds: float):
         super().__init__(
             tech_node=tech_node,
             global_cycle_seconds=global_cycle_seconds,
         )
 
+    @actionDynamicEnergy
+    def read(self) -> float:
+        """
+        Returns the energy for one NOT operation in Joules.
+        """
+        return super().read()
 
-class FlipFlop(NeurosimPlugInComponent):
+
+class FlipFlop(_NeurosimPlugInComponent):
+    """
+    A single flip-flop. Stores one bit of data.
+
+    Parameters
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits, and therefore the number of flip-flops.
+
+    Attributes
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits, and therefore the number of flip-flops.
+    """
+
     component_name = "flip_flop"
     _get_stats_func = neurointerface.flip_flop_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits"]
 
-    def __init__(self, tech_node: str, global_cycle_seconds: float, n_bits: int):
+    def __init__(self, tech_node: float, global_cycle_seconds: float, n_bits: int):
         super().__init__(
             tech_node=tech_node,
             global_cycle_seconds=global_cycle_seconds,
             n_bits=n_bits,
         )
 
+    def read(self):
+        """
+        Returns the energy for one flip-flop read operation in Joules.
+        """
+        return super().read()
 
-class Mux(NeurosimPlugInComponent):
+    def write(self):
+        """
+        Returns the energy for one flip-flop write operation in Joules.
+        """
+        return super().write()
+
+class Mux(_NeurosimPlugInComponent):
+    """
+    A single mux. Selects one of multiple inputs.
+
+    Parameters
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits for each of the mux's inputs.
+    n_mux_inputs : int
+        The number of inputs to the mux.
+
+    Attributes
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits for each of the mux's inputs.
+    n_mux_inputs : int
+        The number of inputs to the mux.
+    """
+
     component_name = "mux"
     _get_stats_func = neurointerface.mux_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits", "n_mux_inputs"]
 
     def __init__(
         self,
-        tech_node: str,
+        tech_node: float,
         global_cycle_seconds: float,
         n_bits: int,
         n_mux_inputs: int,
@@ -583,28 +777,103 @@ class Mux(NeurosimPlugInComponent):
             n_mux_inputs=n_mux_inputs,
         )
 
+    def read(self):
+        """
+        Returns the energy for one muxing operation in Joules.
+        """
+        return super().read()
 
-class Adder(NeurosimPlugInComponent):
+
+class Adder(_NeurosimPlugInComponent):
+    """
+    A single adder. Sums two values into one.
+
+    Parameters
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits of the adder's inputs.
+
+    Attributes
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits of the adder's inputs.
+    """
+
     component_name = "adder"
     _get_stats_func = neurointerface.adder_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits"]
 
-    def __init__(self, tech_node: str, global_cycle_seconds: float, n_bits: int):
+    def __init__(self, tech_node: float, global_cycle_seconds: float, n_bits: int):
         super().__init__(
             tech_node=tech_node,
             global_cycle_seconds=global_cycle_seconds,
             n_bits=n_bits,
         )
 
+    def add(self):
+        """
+        Returns the energy for one addition operation in Joules.
 
-class AdderTree(NeurosimPlugInComponent):
+        Returns
+        -------
+        float
+            The energy for one addition operation in Joules.
+        """
+        return super().add()
+
+    def read(self):
+        """
+        Returns the energy for one addition operation in Joules.
+
+        Returns
+        -------
+        float
+            The energy for one addition operation in Joules.
+        """
+        return super().read()
+
+
+class AdderTree(_NeurosimPlugInComponent):
+    """
+    An adder tree. Sums multiple (>2) values into one.
+
+    Parameters
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits of the adder tree's inputs.
+    n_adder_tree_inputs : int
+        The number of values added by the adder tree.
+
+    Attributes
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits of the adder tree's inputs.
+    n_adder_tree_inputs : int
+        The number of values added by the adder tree.
+    """
     component_name = "adder_tree"
     _get_stats_func = neurointerface.adder_tree_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits", "n_adder_tree_inputs"]
 
     def __init__(
         self,
-        tech_node: str,
+        tech_node: float,
         global_cycle_seconds: float,
         n_bits: int,
         n_adder_tree_inputs: int,
@@ -616,14 +885,64 @@ class AdderTree(NeurosimPlugInComponent):
             n_adder_tree_inputs=n_adder_tree_inputs,
         )
 
+    @actionDynamicEnergy
+    def add(self) -> float:
+        """
+        Returns the energy for one addition operation in Joules.
 
-class MaxPool(NeurosimPlugInComponent):
+        Returns
+        -------
+        float
+            The energy for one addition operation in Joules.
+        """
+        return super().add()
+
+    @actionDynamicEnergy
+    def read(self) -> float:
+        """
+        Returns the energy for one addition operation in Joules.
+
+        Returns
+        -------
+        float
+            The energy for one addition operation in Joules.
+        """
+        return super().read()
+
+
+class MaxPool(_NeurosimPlugInComponent):
+    """
+    A max pool unit.
+
+    Parameters
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits of the max pool unit's inputs.
+    pool_window : int
+        The window size of max pooling.
+
+    Attributes
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits of the max pool unit's inputs.
+    pool_window : int
+        The window size of max pooling.
+    """
+
     component_name = "max_pool"
     _get_stats_func = neurointerface.max_pool_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits", "pool_window"]
 
     def __init__(
-        self, tech_node: str, global_cycle_seconds: float, n_bits: int, pool_window: int
+        self, tech_node: float, global_cycle_seconds: float, n_bits: int, pool_window: int
     ):
         super().__init__(
             tech_node=tech_node,
@@ -633,14 +952,42 @@ class MaxPool(NeurosimPlugInComponent):
         )
 
 
-class ShiftAdd(NeurosimPlugInComponent):
+class ShiftAdd(_NeurosimPlugInComponent):
+    """
+    A shift-and-add unit. This unit will sum and accumulate values in a register, while
+    also shifting the register contents to accept various power-of-two scaling factors
+    for the summed values.
+
+    Parameters
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits of the shift-and-add unit's inputs.
+    shift_register_n_bits : int
+        The number of bits of the shift register.
+
+    Attributes
+    ----------
+    tech_node : float
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    n_bits : int
+        The number of bits of the shift-and-add unit's inputs.
+    shift_register_n_bits : int
+        The number of bits of the shift register.
+    """
+
     component_name = "shift_add"
     _get_stats_func = neurointerface.shift_add_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits", "shift_register_n_bits"]
 
     def __init__(
         self,
-        tech_node: str,
+        tech_node: float,
         global_cycle_seconds: float,
         n_bits: int,
         shift_register_n_bits: int,
@@ -652,8 +999,77 @@ class ShiftAdd(NeurosimPlugInComponent):
             shift_register_n_bits=shift_register_n_bits,
         )
 
+    @actionDynamicEnergy
+    def read(self) -> float:
+        """
+        Returns the energy to read the shift-and-add unit's output in Joules.
+        """
+        return super().read()
 
-class NeurosimPIMComponent(NeurosimPlugInComponent):
+    @actionDynamicEnergy
+    def write(self) -> float:
+        """
+        Returns the energy to shift-and-add in Joules.
+        """
+        return super().shift_add()
+
+    @actionDynamicEnergy
+    def shift_add(self) -> float:
+        """
+        Returns the energy to shift-and-add in Joules.
+        """
+        return super().shift_add()
+
+
+class _NeurosimPIMComponent(_NeurosimPlugInComponent):
+    """
+    Base class for Neurosim PIM (Processing In Memory) and/or CiM (Computing In Memory)
+    components.
+
+    Parameters
+    ----------
+    cell_config : str
+        The path to the  cell config file to use.
+    tech_node : str
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    rows : int
+        The number of rows in the CiM array.
+    cols : int
+        The number of columns in the CiM array.
+    cols_active_at_once : int
+        The number of columns active at once. If this is less than the number of
+        columns, the array is activated in multiple steps.
+    adc_resolution : int, optional
+        The resolution of the ADC. Resolution of 0 means no ADC, and the CiM array
+        outputs leave as analog signals.
+    read_pulse_width : float, optional
+        The width of the read pulse in seconds. This is the duration for which the row
+        is asserted when reading from the CiM array.
+    voltage_dac_bits : int, optional
+        The number of bits of a voltage DAC, which outputs analog signals by setting
+        voltage to a given value.
+    temporal_dac_bits : int, optional
+        The number of bits of a temporal DAC, which outputs analog signals by setting
+        the pulse width of a signal. Read pulse width will be multiplied by
+        (2^temporal_dac_bits - 1).
+    temporal_spiking : bool, optional
+        Whether to use a spiking (#pulses) or a PWM (pulse length) approach for temporal
+        DAC.
+    voltage : float, optional
+        The supply voltage in volts.
+    threshold_voltage : float, optional
+        The threshold voltage of all transistors, in volts.
+    sequential : bool, optional
+        Whether to use a sequential approach for the CiM array, meaing that rows are
+        activated one at a time.
+    average_input_value : float, optional
+        The average input value to a row. Must be between 0 and 1.
+    average_cell_value : float, optional
+        The average value of a cell. Must be between 0 and 1.
+    """
+
     component_name = "_override_this_name_"
     _params = [
         "tech_node",
@@ -676,7 +1092,7 @@ class NeurosimPIMComponent(NeurosimPlugInComponent):
 
     def __init__(
         self,
-        tech_node: str,
+        tech_node: float,
         global_cycle_seconds: float,
         rows: int,
         cols: int,
@@ -713,22 +1129,211 @@ class NeurosimPIMComponent(NeurosimPlugInComponent):
         )
 
 
-class RowDrivers(NeurosimPIMComponent):
+class RowDrivers(_NeurosimPIMComponent):
+    """
+    Row drivers for a CiM array, which select array rows and raise them to a read
+    voltage.
+
+    Parameters
+    ----------
+    cell_config : str
+        The path to the  cell config file to use.
+    tech_node : str
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    rows : int
+        The number of rows in the CiM array.
+    cols : int
+        The number of columns in the CiM array.
+    cols_active_at_once : int
+        The number of columns active at once. If this is less than the number of
+        columns, the array is activated in multiple steps.
+    adc_resolution : int, optional
+        The resolution of the ADC. Resolution of 0 means no ADC, and the CiM array
+        outputs leave as analog signals.
+    read_pulse_width : float, optional
+        The width of the read pulse in seconds. This is the duration for which the row
+        is asserted when reading from the CiM array.
+    voltage_dac_bits : int, optional
+        The number of bits of a voltage DAC, which outputs analog signals by setting
+        voltage to a given value.
+    temporal_dac_bits : int, optional
+        The number of bits of a temporal DAC, which outputs analog signals by setting
+        the pulse width of a signal. Read pulse width will be multiplied by
+        (2^temporal_dac_bits - 1).
+    temporal_spiking : bool, optional
+        Whether to use a spiking (#pulses) or a PWM (pulse length) approach for temporal
+        DAC.
+    voltage : float, optional
+        The supply voltage in volts.
+    threshold_voltage : float, optional
+        The threshold voltage of all transistors, in volts.
+    sequential : bool, optional
+        Whether to use a sequential approach for the CiM array, meaing that rows are
+        activated one at a time.
+    average_input_value : float, optional
+        The average input value to a row. Must be between 0 and 1.
+    average_cell_value : float, optional
+        The average value of a cell. Must be between 0 and 1.
+    """
+
     component_name = "array_row_drivers"
     _get_stats_func = neurointerface.row_stats
 
 
-class ColDrivers(NeurosimPIMComponent):
+class ColDrivers(_NeurosimPIMComponent):
+    """
+    Column drivers for a CiM array, which precharge array coolumns and select them for
+    reading.
+
+    Parameters
+    ----------
+    cell_config : str
+        The path to the  cell config file to use.
+    tech_node : str
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    rows : int
+        The number of rows in the CiM array.
+    cols : int
+        The number of columns in the CiM array.
+    cols_active_at_once : int
+        The number of columns active at once. If this is less than the number of
+        columns, the array is activated in multiple steps.
+    adc_resolution : int, optional
+        The resolution of the ADC. Resolution of 0 means no ADC, and the CiM array
+        outputs leave as analog signals.
+    read_pulse_width : float, optional
+        The width of the read pulse in seconds. This is the duration for which the row
+        is asserted when reading from the CiM array.
+    voltage_dac_bits : int, optional
+        The number of bits of a voltage DAC, which outputs analog signals by setting
+        voltage to a given value.
+    temporal_dac_bits : int, optional
+        The number of bits of a temporal DAC, which outputs analog signals by setting
+        the pulse width of a signal. Read pulse width will be multiplied by
+        (2^temporal_dac_bits - 1).
+    temporal_spiking : bool, optional
+        Whether to use a spiking (#pulses) or a PWM (pulse length) approach for temporal
+        DAC.
+    voltage : float, optional
+        The supply voltage in volts.
+    threshold_voltage : float, optional
+        The threshold voltage of all transistors, in volts.
+    sequential : bool, optional
+        Whether to use a sequential approach for the CiM array, meaing that rows are
+        activated one at a time.
+    average_input_value : float, optional
+        The average input value to a row. Must be between 0 and 1.
+    average_cell_value : float, optional
+        The average value of a cell. Must be between 0 and 1.
+    """
+
     component_name = "array_col_drivers"
     _get_stats_func = neurointerface.col_stats
 
 
-class ADC(NeurosimPIMComponent):
+class ADC(_NeurosimPIMComponent):
+    """
+    Analog-digital-converters (ADCs) for a CiM array, which read analog column outputs
+    and convert them to digital values.
+
+    Parameters
+    ----------
+    cell_config : str
+        The path to the  cell config file to use.
+    tech_node : str
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    rows : int
+        The number of rows in the CiM array.
+    cols : int
+        The number of columns in the CiM array.
+    cols_active_at_once : int
+        The number of columns active at once. If this is less than the number of
+        columns, the array is activated in multiple steps.
+    adc_resolution : int, optional
+        The resolution of the ADC. Resolution of 0 means no ADC, and the CiM array
+        outputs leave as analog signals.
+    read_pulse_width : float, optional
+        The width of the read pulse in seconds. This is the duration for which the row
+        is asserted when reading from the CiM array.
+    voltage_dac_bits : int, optional
+        The number of bits of a voltage DAC, which outputs analog signals by setting
+        voltage to a given value.
+    temporal_dac_bits : int, optional
+        The number of bits of a temporal DAC, which outputs analog signals by setting
+        the pulse width of a signal. Read pulse width will be multiplied by
+        (2^temporal_dac_bits - 1).
+    temporal_spiking : bool, optional
+        Whether to use a spiking (#pulses) or a PWM (pulse length) approach for temporal
+        DAC.
+    voltage : float, optional
+        The supply voltage in volts.
+    threshold_voltage : float, optional
+        The threshold voltage of all transistors, in volts.
+    sequential : bool, optional
+        Whether to use a sequential approach for the CiM array, meaing that rows are
+        activated one at a time.
+    average_input_value : float, optional
+        The average input value to a row. Must be between 0 and 1.
+    average_cell_value : float, optional
+        The average value of a cell. Must be between 0 and 1.
+    """
     component_name = "array_adc"
     _get_stats_func = neurointerface.col_stats
 
 
-class MemoryCell(NeurosimPIMComponent):
+class MemoryCell(_NeurosimPIMComponent):
+    """
+    A memory cell for a CiM array, which stores data and performs analog computation.
+
+    Parameters
+    ----------
+    cell_config : str
+        The path to the  cell config file to use.
+    tech_node : str
+        The technology node in meters.
+    global_cycle_seconds : float
+        The time period of the system clock in seconds.
+    rows : int
+        The number of rows in the CiM array.
+    cols : int
+        The number of columns in the CiM array.
+    cols_active_at_once : int
+        The number of columns active at once. If this is less than the number of
+        columns, the array is activated in multiple steps.
+    adc_resolution : int, optional
+        The resolution of the ADC. Resolution of 0 means no ADC, and the CiM array
+        outputs leave as analog signals.
+    read_pulse_width : float, optional
+        The width of the read pulse in seconds. This is the duration for which the row
+        is asserted when reading from the CiM array.
+    voltage_dac_bits : int, optional
+        The number of bits of a voltage DAC, which outputs analog signals by setting
+        voltage to a given value.
+    temporal_dac_bits : int, optional
+        The number of bits of a temporal DAC, which outputs analog signals by setting
+        the pulse width of a signal. Read pulse width will be multiplied by
+        (2^temporal_dac_bits - 1).
+    temporal_spiking : bool, optional
+        Whether to use a spiking (#pulses) or a PWM (pulse length) approach for temporal
+        DAC.
+    voltage : float, optional
+        The supply voltage in volts.
+    threshold_voltage : float, optional
+        The threshold voltage of all transistors, in volts.
+    sequential : bool, optional
+        Whether to use a sequential approach for the CiM array, meaing that rows are
+        activated one at a time.
+    average_input_value : float, optional
+        The average input value to a row. Must be between 0 and 1.
+    average_cell_value : float, optional
+        The average value of a cell. Must be between 0 and 1.
+    """
     component_name = "memory_cell"
     _get_stats_func = neurointerface.cell_stats
 
