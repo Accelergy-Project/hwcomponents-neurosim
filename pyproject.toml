@@ -32,6 +32,8 @@ hwcomponents_neurosim = [
     "NeuroSim/main",
     "default_config.cfg",
     "neurosim.model.yaml",
+    "DNN_NeuroSim_V1.3/**/*",
+    "drop_in/**/*",
 ]
 
 [tool.setuptools_scm]

@@ -1,0 +1,2 @@
+recursive-include hwcomponents_neurosim/DNN_NeuroSim_V1.3 *
+recursive-include hwcomponents_neurosim/drop_in *
