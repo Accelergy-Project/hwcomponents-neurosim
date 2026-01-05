@@ -524,11 +524,11 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
             "n_mux_inputs": self.n_mux_inputs,
         }
 
-        if kind == "array_col_drivers":
+        if kind == "ArrayColDrivers":
             attributes["adc_resolution"] = 0
             return self.get_neurosim_output(kind)
 
-        if kind in ["array_adc", "array_col_drivers"]:
+        if kind in ["ArrayADC", "ArrayColDrivers"]:
             logger.info("First running WITH the ADC to get total energy")
             with_adc = self.get_neurosim_output(kind)
             logger.info("Now running WITHOUT the ADC to get column driver energy")
@@ -538,10 +538,10 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
         return self.get_neurosim_output(kind)
 
     def _get_component_name(self):
-        if isinstance(self.name, str):
-            return self.name
+        if isinstance(self.component_name, str):
+            return self.component_name
         else:
-            return self.name[0]
+            return self.component_name[0]
 
     @actionDynamicEnergy
     def read(self) -> float:
