@@ -311,7 +311,7 @@ class Crossbar:
         tech_node: int,
         adc_resolution: int,
         read_pulse_width: float,
-        global_cycle_seconds: float,
+        cycle_period: float,
         voltage_dac_bits: int,
         temporal_dac_bits: int,
         temporal_spiking: bool,
@@ -329,7 +329,7 @@ class Crossbar:
         self.num_output_levels = 2**adc_resolution
         self.has_adc = adc_resolution > 0
         self.read_pulse_width = read_pulse_width
-        self.global_cycle_seconds = global_cycle_seconds
+        self.cycle_period = cycle_period
         self.voltage_dac_bits = voltage_dac_bits
         self.temporal_dac_bits = temporal_dac_bits
         self.temporal_spiking = temporal_spiking
@@ -373,7 +373,7 @@ class Crossbar:
             cfg = replace_cfg(to_set, getattr(self, to_set), cfg, cfgfile)
         for to_set in [a for a in other_args if a[0] not in my_set]:
             logger.debug("Setting %s to %s", to_set[0], to_set[1])
-            if "global_cycle_seconds" not in to_set[0]:
+            if "cycle_period" not in to_set[0]:
                 cfg = replace_cfg(to_set[0], to_set[1], cfg, cfgfile)
 
         # Write config
@@ -443,12 +443,12 @@ class Crossbar:
             min_latency,
             columns_at_once,
         )
-        if min_latency < self.global_cycle_seconds * 1e9:
+        if min_latency < self.cycle_period * 1e9:
             logger.warning(
                 "Minimum crossbar latency of %s ns is less than the cycle "
                 "time of %s ns.",
                 min_latency,
-                self.global_cycle_seconds * 1e9,
+                self.cycle_period * 1e9,
             )
         # Remove the config file
         os.remove(inputpath)
@@ -502,7 +502,7 @@ class Crossbar:
                 for c in self.comps
                 if "row" in c.name or "col" in c.name and c.read
             )
-            * self.global_cycle_seconds
+            * self.cycle_period
         )
 
     def leakage_per_cell(self) -> float:
@@ -511,7 +511,7 @@ class Crossbar:
         # HI cell.
         return (
             sum(c.leakage for c in self.comps if c.read and "memcell cellhi" in c.name)
-            * self.global_cycle_seconds
+            * self.cycle_period
         )
 
     def activation_energy(self, target: str) -> float:
@@ -533,7 +533,7 @@ class Crossbar:
         comps = self.get_components(True, True)
         return (
             sum(c.leakage for c in comps if target.lower() in c.name)
-            * self.global_cycle_seconds
+            * self.cycle_period
         )
 
 
@@ -568,7 +568,7 @@ def rowcol_stats(
     leakage = crossbar.leakage(kind)
     read = read_off + (read_on - read_off) * avg_input
     write = write_on  # Can't gate writes becasuse we still have to reset cells
-    return stats2dict(read, write, area, leakage * crossbar.global_cycle_seconds)
+    return stats2dict(read, write, area, leakage * crossbar.cycle_period)
 
 
 def row_stats(

@@ -28,7 +28,7 @@ CACHE = {}
 #   If a parameter is not used in an estimation (e.g. creating a shift+add), then the defaults will
 #   be used for the non-selected device (PIM_PARAMS defaults for rows & columns are used).
 SHARED_PARAMS = {
-    "global_cycle_seconds": (
+    "cycle_period": (
         f"REQUIRED: Duration of one cycle in seconds",
         1e-9,
         float,
@@ -207,7 +207,7 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
         The path to the  cell config file to use.
     tech_node : str
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     rows : int
         The number of rows in the CiM array.
@@ -264,7 +264,7 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
         self,
         cell_config: str,
         tech_node: float,
-        global_cycle_seconds: float = 100e-9,
+        cycle_period: float = 100e-9,
         rows: int = 32,
         cols: int = 32,
         cols_active_at_once: int = 8,
@@ -286,7 +286,7 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
     ):
         self.cell_config = cell_config
         self.tech_node = tech_node
-        self.global_cycle_seconds = global_cycle_seconds
+        self.cycle_period = cycle_period
         self.rows = rows
         self.cols = cols
         self.cols_active_at_once = cols_active_at_once
@@ -323,7 +323,7 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
             "tech_node": self.tech_node,
             "adc_resolution": self.adc_resolution,
             "read_pulse_width": self.read_pulse_width,
-            "global_cycle_seconds": self.global_cycle_seconds,
+            "cycle_period": self.cycle_period,
             "voltage_dac_bits": self.voltage_dac_bits,
             "temporal_dac_bits": self.temporal_dac_bits,
             "temporal_spiking": self.temporal_spiking,
@@ -357,7 +357,7 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
         attributes = {
             "cell_config": self.cell_config,
             "tech_node": self.tech_node,
-            "global_cycle_seconds": self.global_cycle_seconds,
+            "cycle_period": self.cycle_period,
             "rows": self.rows,
             "cols": self.cols,
             "cols_active_at_once": self.cols_active_at_once,
@@ -503,7 +503,7 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
         attributes = {
             "cell_config": self.cell_config,
             "tech_node": self.tech_node,
-            "global_cycle_seconds": self.global_cycle_seconds,
+            "cycle_period": self.cycle_period,
             "rows": self.rows,
             "cols": self.cols,
             "cols_active_at_once": self.cols_active_at_once,
@@ -576,25 +576,25 @@ class NORGate(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
 
     Attributes
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     """
 
     component_name = ["NORGate", "NeuroSimNORGate"]
     _get_stats_func = neurointerface.nor_gate_stats
-    _params = ["tech_node", "global_cycle_seconds"]
+    _params = ["tech_node", "cycle_period"]
 
-    def __init__(self, tech_node: float, global_cycle_seconds: float):
+    def __init__(self, tech_node: float, cycle_period: float):
         super().__init__(
             tech_node=tech_node,
-            global_cycle_seconds=global_cycle_seconds,
+            cycle_period=cycle_period,
         )
 
     @actionDynamicEnergy
@@ -618,25 +618,25 @@ class NANDGate(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
 
     Attributes
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     """
 
     component_name = ["NANDGate", "NeuroSimNANDGate"]
     _get_stats_func = neurointerface.nand_gate_stats
-    _params = ["tech_node", "global_cycle_seconds"]
+    _params = ["tech_node", "cycle_period"]
 
-    def __init__(self, tech_node: float, global_cycle_seconds: float):
+    def __init__(self, tech_node: float, cycle_period: float):
         super().__init__(
             tech_node=tech_node,
-            global_cycle_seconds=global_cycle_seconds,
+            cycle_period=cycle_period,
         )
 
     @actionDynamicEnergy
@@ -655,25 +655,25 @@ class NOTGate(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
 
     Attributes
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     """
 
     component_name = ["NOTGate", "NeuroSimNOTGate"]
     _get_stats_func = neurointerface.not_gate_stats
-    _params = ["tech_node", "global_cycle_seconds"]
+    _params = ["tech_node", "cycle_period"]
 
-    def __init__(self, tech_node: float, global_cycle_seconds: float):
+    def __init__(self, tech_node: float, cycle_period: float):
         super().__init__(
             tech_node=tech_node,
-            global_cycle_seconds=global_cycle_seconds,
+            cycle_period=cycle_period,
         )
 
     @actionDynamicEnergy
@@ -692,7 +692,7 @@ class FlipFlop(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits, and therefore the number of flip-flops.
@@ -701,7 +701,7 @@ class FlipFlop(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits, and therefore the number of flip-flops.
@@ -709,12 +709,12 @@ class FlipFlop(_NeurosimPlugInComponent):
 
     component_name = ["FlipFlop", "NeuroSimFlipFlop"]
     _get_stats_func = neurointerface.flip_flop_stats
-    _params = ["tech_node", "global_cycle_seconds", "n_bits"]
+    _params = ["tech_node", "cycle_period", "n_bits"]
 
-    def __init__(self, tech_node: float, global_cycle_seconds: float, n_bits: int):
+    def __init__(self, tech_node: float, cycle_period: float, n_bits: int):
         super().__init__(
             tech_node=tech_node,
-            global_cycle_seconds=global_cycle_seconds,
+            cycle_period=cycle_period,
             n_bits=n_bits,
         )
 
@@ -738,7 +738,7 @@ class Mux(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits for each of the mux's inputs.
@@ -749,7 +749,7 @@ class Mux(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits for each of the mux's inputs.
@@ -759,18 +759,18 @@ class Mux(_NeurosimPlugInComponent):
 
     component_name = ["Mux", "NeuroSimMux"]
     _get_stats_func = neurointerface.mux_stats
-    _params = ["tech_node", "global_cycle_seconds", "n_bits", "n_mux_inputs"]
+    _params = ["tech_node", "cycle_period", "n_bits", "n_mux_inputs"]
 
     def __init__(
         self,
         tech_node: float,
-        global_cycle_seconds: float,
+        cycle_period: float,
         n_bits: int,
         n_mux_inputs: int,
     ):
         super().__init__(
             tech_node=tech_node,
-            global_cycle_seconds=global_cycle_seconds,
+            cycle_period=cycle_period,
             n_bits=n_bits,
             n_mux_inputs=n_mux_inputs,
         )
@@ -790,7 +790,7 @@ class Adder(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits of the adder's inputs.
@@ -799,7 +799,7 @@ class Adder(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits of the adder's inputs.
@@ -807,12 +807,12 @@ class Adder(_NeurosimPlugInComponent):
 
     component_name = ["Adder", "NeuroSimAdder", "IntAdder"]
     _get_stats_func = neurointerface.adder_stats
-    _params = ["tech_node", "global_cycle_seconds", "n_bits"]
+    _params = ["tech_node", "cycle_period", "n_bits"]
 
-    def __init__(self, tech_node: float, global_cycle_seconds: float, n_bits: int):
+    def __init__(self, tech_node: float, cycle_period: float, n_bits: int):
         super().__init__(
             tech_node=tech_node,
-            global_cycle_seconds=global_cycle_seconds,
+            cycle_period=cycle_period,
             n_bits=n_bits,
         )
 
@@ -847,7 +847,7 @@ class AdderTree(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits of the adder tree's inputs.
@@ -858,7 +858,7 @@ class AdderTree(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits of the adder tree's inputs.
@@ -867,18 +867,18 @@ class AdderTree(_NeurosimPlugInComponent):
     """
     component_name = ["AdderTree", "NeuroSimAdderTree", "IntAdderTree"]
     _get_stats_func = neurointerface.adder_tree_stats
-    _params = ["tech_node", "global_cycle_seconds", "n_bits", "n_adder_tree_inputs"]
+    _params = ["tech_node", "cycle_period", "n_bits", "n_adder_tree_inputs"]
 
     def __init__(
         self,
         tech_node: float,
-        global_cycle_seconds: float,
+        cycle_period: float,
         n_bits: int,
         n_adder_tree_inputs: int,
     ):
         super().__init__(
             tech_node=tech_node,
-            global_cycle_seconds=global_cycle_seconds,
+            cycle_period=cycle_period,
             n_bits=n_bits,
             n_adder_tree_inputs=n_adder_tree_inputs,
         )
@@ -916,7 +916,7 @@ class MaxPool(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits of the max pool unit's inputs.
@@ -927,7 +927,7 @@ class MaxPool(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits of the max pool unit's inputs.
@@ -937,14 +937,14 @@ class MaxPool(_NeurosimPlugInComponent):
 
     component_name = ["MaxPool", "NeuroSimMaxPool"]
     _get_stats_func = neurointerface.max_pool_stats
-    _params = ["tech_node", "global_cycle_seconds", "n_bits", "pool_window"]
+    _params = ["tech_node", "cycle_period", "n_bits", "pool_window"]
 
     def __init__(
-        self, tech_node: float, global_cycle_seconds: float, n_bits: int, pool_window: int
+        self, tech_node: float, cycle_period: float, n_bits: int, pool_window: int
     ):
         super().__init__(
             tech_node=tech_node,
-            global_cycle_seconds=global_cycle_seconds,
+            cycle_period=cycle_period,
             n_bits=n_bits,
             pool_window=pool_window,
         )
@@ -960,7 +960,7 @@ class ShiftAdd(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits of the shift-and-add unit's inputs.
@@ -971,7 +971,7 @@ class ShiftAdd(_NeurosimPlugInComponent):
     ----------
     tech_node : float
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits of the shift-and-add unit's inputs.
@@ -981,18 +981,18 @@ class ShiftAdd(_NeurosimPlugInComponent):
 
     component_name = ["ShiftAdd", "NeuroSimShiftAdd"]
     _get_stats_func = neurointerface.shift_add_stats
-    _params = ["tech_node", "global_cycle_seconds", "n_bits", "shift_register_n_bits"]
+    _params = ["tech_node", "cycle_period", "n_bits", "shift_register_n_bits"]
 
     def __init__(
         self,
         tech_node: float,
-        global_cycle_seconds: float,
+        cycle_period: float,
         n_bits: int,
         shift_register_n_bits: int,
     ):
         super().__init__(
             tech_node=tech_node,
-            global_cycle_seconds=global_cycle_seconds,
+            cycle_period=cycle_period,
             n_bits=n_bits,
             shift_register_n_bits=shift_register_n_bits,
         )
@@ -1030,7 +1030,7 @@ class _NeurosimPIMComponent(_NeurosimPlugInComponent):
         The path to the  cell config file to use.
     tech_node : str
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     rows : int
         The number of rows in the CiM array.
@@ -1071,7 +1071,7 @@ class _NeurosimPIMComponent(_NeurosimPlugInComponent):
     component_name = "_override_this_name_"
     _params = [
         "tech_node",
-        "global_cycle_seconds",
+        "cycle_period",
         "rows",
         "cols",
         "cols_active_at_once",
@@ -1091,7 +1091,7 @@ class _NeurosimPIMComponent(_NeurosimPlugInComponent):
     def __init__(
         self,
         tech_node: float,
-        global_cycle_seconds: float,
+        cycle_period: float,
         rows: int,
         cols: int,
         cols_active_at_once: int,
@@ -1109,7 +1109,7 @@ class _NeurosimPIMComponent(_NeurosimPlugInComponent):
     ):
         super().__init__(
             tech_node=tech_node,
-            global_cycle_seconds=global_cycle_seconds,
+            cycle_period=cycle_period,
             rows=rows,
             cols=cols,
             cols_active_at_once=cols_active_at_once,
@@ -1138,7 +1138,7 @@ class RowDrivers(_NeurosimPIMComponent):
         The path to the  cell config file to use.
     tech_node : str
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     rows : int
         The number of rows in the CiM array.
@@ -1191,7 +1191,7 @@ class ColDrivers(_NeurosimPIMComponent):
         The path to the  cell config file to use.
     tech_node : str
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     rows : int
         The number of rows in the CiM array.
@@ -1244,7 +1244,7 @@ class ADC(_NeurosimPIMComponent):
         The path to the  cell config file to use.
     tech_node : str
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     rows : int
         The number of rows in the CiM array.
@@ -1295,7 +1295,7 @@ class MemoryCell(_NeurosimPIMComponent):
         The path to the  cell config file to use.
     tech_node : str
         The technology node in meters.
-    global_cycle_seconds : float
+    cycle_period : float
         The time period of the system clock in seconds.
     rows : int
         The number of rows in the CiM array.
@@ -1353,7 +1353,7 @@ def build_crossbar(attrs: dict, overrides: dict = {}) -> neurointerface.Crossbar
         "tech_node": attrs["tech_node"],
         "adc_resolution": attrs[f"adc_resolution"],
         "read_pulse_width": attrs["read_pulse_width"],
-        "global_cycle_seconds": attrs["global_cycle_seconds"],
+        "cycle_period": attrs["cycle_period"],
         "voltage_dac_bits": attrs["voltage_dac_bits"],
         "temporal_dac_bits": attrs["temporal_dac_bits"],
         "temporal_spiking": attrs["temporal_spiking"],
