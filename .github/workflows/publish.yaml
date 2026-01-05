@@ -22,9 +22,19 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history and tags for setuptools-scm
           submodules: recursive  # Check out all submodules
-      - name: Initialize and update submodules
+      - name: Verify and initialize submodules
         run: |
-          git submodule update --init --recursive
+          git submodule status
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
+          echo "Checking for DNN_NeuroSim_V1.3..."
+          if [ -d "hwcomponents_neurosim/DNN_NeuroSim_V1.3" ]; then
+            echo "✓ Submodule found"
+            ls -la hwcomponents_neurosim/DNN_NeuroSim_V1.3/Inference_pytorch/ || echo "Inference_pytorch not found"
+          else
+            echo "✗ Submodule not found - attempting manual checkout"
+            git submodule add https://github.com/neurosim/DNN_NeuroSim_V1.3.git hwcomponents_neurosim/DNN_NeuroSim_V1.3 || echo "Submodule add failed"
+          fi
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
