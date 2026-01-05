@@ -6,6 +6,9 @@ components and various peripheral components.
 We also allow conversions for NVMExplorer[2]/NVSim[3] style cell files to
 Neurosim processing-in-memory / compute-in-memory arrays.
 
+These models are for use with the HWComponents package, found at
+https://accelergy-project.github.io/hwcomponents/.
+
 ## CiM Array Model
 We encourage you read section 6 of the NeuroSim Manual in the
 DNN_NeuroSim_V1.3/Documents folder.
@@ -20,7 +23,7 @@ We model CiM array energy/area with four pieces:
   bitlines, or columns. Column activation is the energy required to get this
   current out and to precharge the wordline before reading.
 - Analog-Digital-Conversion: This is the circuit that reads an analog value
-  from the array and converts to a digital signal for output processing. 
+  from the array and converts to a digital signal for output processing.
 - Cell: This a memory cells in the array.
 
 In short: An input activates a row, an output activates a column, a
@@ -28,12 +31,10 @@ multiplication activates a cell, and an output read takes an ADC conversion.
 
 ## Installing
 
-Clone the repository and install with pip:
+Install from PyPI:
 
 ```bash
-git clone --recurse-submodules https://github.com/Accelergy-Project/hwcomponents-neurosim.git
-cd hwcomponents-neurosim
-pip install .
+pip install hwcomponents-neurosim
 
 # Check that the installation is successful
 hwc --list | grep array_col_drivers
