@@ -588,8 +588,7 @@ class NORGate(_NeurosimPlugInComponent):
     """
 
 
-
-    component_name = "nor_gate"
+    component_name = ["NORGate", "NeuroSimNORGate"]
     _get_stats_func = neurointerface.nor_gate_stats
     _params = ["tech_node", "global_cycle_seconds"]
 
@@ -631,7 +630,7 @@ class NANDGate(_NeurosimPlugInComponent):
         The time period of the system clock in seconds.
     """
 
-    component_name = "nand_gate"
+    component_name = ["NANDGate", "NeuroSimNANDGate"]
     _get_stats_func = neurointerface.nand_gate_stats
     _params = ["tech_node", "global_cycle_seconds"]
 
@@ -668,7 +667,7 @@ class NOTGate(_NeurosimPlugInComponent):
         The time period of the system clock in seconds.
     """
 
-    component_name = "not_gate"
+    component_name = ["NOTGate", "NeuroSimNOTGate"]
     _get_stats_func = neurointerface.not_gate_stats
     _params = ["tech_node", "global_cycle_seconds"]
 
@@ -709,7 +708,7 @@ class FlipFlop(_NeurosimPlugInComponent):
         The number of bits, and therefore the number of flip-flops.
     """
 
-    component_name = "flip_flop"
+    component_name = ["FlipFlop", "NeuroSimFlipFlop"]
     _get_stats_func = neurointerface.flip_flop_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits"]
 
@@ -1178,7 +1177,7 @@ class RowDrivers(_NeurosimPIMComponent):
         The average value of a cell. Must be between 0 and 1.
     """
 
-    component_name = "array_row_drivers"
+    component_name = ["ArrayRowDrivers", "NeuroSimArrayRowDrivers"]
     _get_stats_func = neurointerface.row_stats
 
 
@@ -1231,7 +1230,7 @@ class ColDrivers(_NeurosimPIMComponent):
         The average value of a cell. Must be between 0 and 1.
     """
 
-    component_name = "array_col_drivers"
+    component_name = ["ArrayColDrivers", "NeuroSimArrayColDrivers"]
     _get_stats_func = neurointerface.col_stats
 
 
@@ -1283,7 +1282,7 @@ class ADC(_NeurosimPIMComponent):
     average_cell_value : float, optional
         The average value of a cell. Must be between 0 and 1.
     """
-    component_name = "array_adc"
+    component_name = ["ArrayADC", "NeuroSimArrayADC"]
     _get_stats_func = neurointerface.col_stats
 
 
@@ -1334,7 +1333,7 @@ class MemoryCell(_NeurosimPIMComponent):
     average_cell_value : float, optional
         The average value of a cell. Must be between 0 and 1.
     """
-    component_name = "memory_cell"
+    component_name = ["MemoryCell", "NeuroSimMemoryCell"]
     _get_stats_func = neurointerface.cell_stats
 
 
