@@ -12,7 +12,7 @@ import hwcomponents_neurosim.neurointerface as neurointerface
 # ==================================================================================================
 SCRIPT_DIR = os.path.realpath(os.path.dirname(__file__))
 DEBUG = False
-PRIORITY = 0.7
+PRIORITY = 0.3
 PERMITTED_TECH_NODES = [7e-9, 10e-9, 14e-9, 22e-9, 32e-9, 45e-9, 65e-9, 90e-9, 130e-9]
 SAMPLE_CELLS = [
     f.split(".")[0]
@@ -587,7 +587,6 @@ class NORGate(_NeurosimPlugInComponent):
         The time period of the system clock in seconds.
     """
 
-
     component_name = ["NORGate", "NeuroSimNORGate"]
     _get_stats_func = neurointerface.nor_gate_stats
     _params = ["tech_node", "global_cycle_seconds"]
@@ -758,7 +757,7 @@ class Mux(_NeurosimPlugInComponent):
         The number of inputs to the mux.
     """
 
-    component_name = "mux"
+    component_name = ["Mux", "NeuroSimMux"]
     _get_stats_func = neurointerface.mux_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits", "n_mux_inputs"]
 
@@ -806,7 +805,7 @@ class Adder(_NeurosimPlugInComponent):
         The number of bits of the adder's inputs.
     """
 
-    component_name = "adder"
+    component_name = ["Adder", "NeuroSimAdder", "IntAdder"]
     _get_stats_func = neurointerface.adder_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits"]
 
@@ -866,7 +865,7 @@ class AdderTree(_NeurosimPlugInComponent):
     n_adder_tree_inputs : int
         The number of values added by the adder tree.
     """
-    component_name = "adder_tree"
+    component_name = ["AdderTree", "NeuroSimAdderTree", "IntAdderTree"]
     _get_stats_func = neurointerface.adder_tree_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits", "n_adder_tree_inputs"]
 
@@ -936,7 +935,7 @@ class MaxPool(_NeurosimPlugInComponent):
         The window size of max pooling.
     """
 
-    component_name = "max_pool"
+    component_name = ["MaxPool", "NeuroSimMaxPool"]
     _get_stats_func = neurointerface.max_pool_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits", "pool_window"]
 
@@ -980,7 +979,7 @@ class ShiftAdd(_NeurosimPlugInComponent):
         The number of bits of the shift register.
     """
 
-    component_name = "shift_add"
+    component_name = ["ShiftAdd", "NeuroSimShiftAdd"]
     _get_stats_func = neurointerface.shift_add_stats
     _params = ["tech_node", "global_cycle_seconds", "n_bits", "shift_register_n_bits"]
 
