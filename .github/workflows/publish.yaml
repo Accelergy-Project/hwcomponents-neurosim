@@ -21,35 +21,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history and tags for setuptools-scm
-          submodules: recursive  # Check out all submodules
-      - name: Verify and initialize submodules
+      - name: Initialize and clone submodules
         run: |
           echo "Current directory: $(pwd)"
-          echo "Listing .gitmodules:"
-          cat .gitmodules || echo "No .gitmodules found"
-          echo "Submodule status before update:"
-          git submodule status || echo "No submodules configured"
-          echo "Initializing submodules..."
-          git submodule sync --recursive || true
-          git submodule update --init --recursive --force || true
-          echo "Submodule status after update:"
-          git submodule status || echo "Submodule status failed"
-          echo "Checking for DNN_NeuroSim_V1.3..."
-          if [ -d "hwcomponents_neurosim/DNN_NeuroSim_V1.3" ]; then
-            echo "✓ Submodule directory exists"
-            ls -la hwcomponents_neurosim/DNN_NeuroSim_V1.3/ || echo "Cannot list submodule contents"
-            if [ -d "hwcomponents_neurosim/DNN_NeuroSim_V1.3/Inference_pytorch" ]; then
-              echo "✓ Inference_pytorch found"
-            else
-              echo "✗ Inference_pytorch not found in submodule"
-              exit 1
-            fi
-          else
-            echo "✗ Submodule directory not found"
-            echo "Attempting to clone manually..."
-            mkdir -p hwcomponents_neurosim
-            git clone --depth 1 https://github.com/neurosim/DNN_NeuroSim_V1.3.git hwcomponents_neurosim/DNN_NeuroSim_V1.3 || exit 1
+          echo "Checking for .gitmodules..."
+          if [ -f ".gitmodules" ]; then
+            echo "Found .gitmodules:"
+            cat .gitmodules
+            echo "Initializing submodules via git..."
+            git submodule update --init --recursive || echo "Git submodule update failed, trying manual clone"
           fi
+          echo "Checking for DNN_NeuroSim_V1.3..."
+          if [ ! -d "hwcomponents_neurosim/DNN_NeuroSim_V1.3" ]; then
+            echo "Submodule not found, cloning manually..."
+            mkdir -p hwcomponents_neurosim
+            git clone --depth 1 https://github.com/neurosim/DNN_NeuroSim_V1.3.git hwcomponents_neurosim/DNN_NeuroSim_V1.3
+          fi
+          echo "Verifying submodule contents..."
+          if [ ! -d "hwcomponents_neurosim/DNN_NeuroSim_V1.3/Inference_pytorch" ]; then
+            echo "ERROR: Inference_pytorch directory not found after clone"
+            ls -la hwcomponents_neurosim/DNN_NeuroSim_V1.3/ || echo "Cannot list submodule directory"
+            exit 1
+          fi
+          echo "✓ Submodule verified successfully"
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
