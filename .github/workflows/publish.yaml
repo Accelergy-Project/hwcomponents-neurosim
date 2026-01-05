@@ -24,16 +24,31 @@ jobs:
           submodules: recursive  # Check out all submodules
       - name: Verify and initialize submodules
         run: |
-          git submodule status
-          git submodule sync --recursive
-          git submodule update --init --recursive --force
+          echo "Current directory: $(pwd)"
+          echo "Listing .gitmodules:"
+          cat .gitmodules || echo "No .gitmodules found"
+          echo "Submodule status before update:"
+          git submodule status || echo "No submodules configured"
+          echo "Initializing submodules..."
+          git submodule sync --recursive || true
+          git submodule update --init --recursive --force || true
+          echo "Submodule status after update:"
+          git submodule status || echo "Submodule status failed"
           echo "Checking for DNN_NeuroSim_V1.3..."
           if [ -d "hwcomponents_neurosim/DNN_NeuroSim_V1.3" ]; then
-            echo "✓ Submodule found"
-            ls -la hwcomponents_neurosim/DNN_NeuroSim_V1.3/Inference_pytorch/ || echo "Inference_pytorch not found"
+            echo "✓ Submodule directory exists"
+            ls -la hwcomponents_neurosim/DNN_NeuroSim_V1.3/ || echo "Cannot list submodule contents"
+            if [ -d "hwcomponents_neurosim/DNN_NeuroSim_V1.3/Inference_pytorch" ]; then
+              echo "✓ Inference_pytorch found"
+            else
+              echo "✗ Inference_pytorch not found in submodule"
+              exit 1
+            fi
           else
-            echo "✗ Submodule not found - attempting manual checkout"
-            git submodule add https://github.com/neurosim/DNN_NeuroSim_V1.3.git hwcomponents_neurosim/DNN_NeuroSim_V1.3 || echo "Submodule add failed"
+            echo "✗ Submodule directory not found"
+            echo "Attempting to clone manually..."
+            mkdir -p hwcomponents_neurosim
+            git clone --depth 1 https://github.com/neurosim/DNN_NeuroSim_V1.3.git hwcomponents_neurosim/DNN_NeuroSim_V1.3 || exit 1
           fi
       - name: Set up Python
         uses: actions/setup-python@v4
