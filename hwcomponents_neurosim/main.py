@@ -499,6 +499,10 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
             cell size.
             """
         )
+
+        # pJ->J, um^2->m^2
+        rval = {k: v / 1e12 for k, v in rval.items()}
+
         return rval
 
     def query_neurosim(self, kind: str, logger: logging.Logger) -> Dict[str, float]:
@@ -1396,156 +1400,6 @@ def build_crossbar(
             key,
         )
     return CACHE[key]
-
-
-def get_neurosim_output(
-    kind: str, attributes: dict, logger: logging.Logger
-) -> Dict[str, float]:
-    """Queries Neurosim for the stats for 'kind' component with 'attributes' attributes"""
-    assert kind in SUPPORTED_CLASSES, f"Unsupported primitive: {kind}"
-    logger.debug("Querying Neurosim for %s with attributes: %s", kind, attributes)
-
-    # Load defaults
-    to_pass = {k: v[1] for k, v in ALL_PARAMS.items()}
-    # Get call function ready
-    callfunc = SUPPORTED_CLASSES[kind][0]
-    params = SUPPORTED_CLASSES[kind][1]
-    docs = {k: v[0] for k, v in params.items()}
-
-    # Get required parameters
-    for p in params:
-        if "REQUIRED" in params[p][0]:
-            assert p in attributes, (
-                f"Failed to generate {kind}. Required parameter not found: "
-                f"{p}. Usage: \n{dict_to_str(docs)}"
-            )
-        elif p not in attributes:
-            attributes[p] = to_pass[p]
-
-        passtype = params[p][2] if len(params[p]) > 2 else int
-        try:
-            if isinstance(attributes[p], str) and passtype != str:
-                t = "".join(c for c in attributes[p] if (c.isdigit() or c == "."))
-            else:
-                t = attributes[p]
-            if t != attributes[p]:
-                logger.warning(
-                    f"WARN: Non-numeric {attributes[p]} for parameter {p}. Using {t} instead."
-                )
-            to_pass[p] = passtype(t)
-        except ValueError as e:
-            raise ValueError(
-                f"Failed to generate {kind}. Parameter {p} must be of type "
-                f'{passtype}. Given: "{attributes[p]}" Usage: \n{dict_to_str(docs)}'
-            ) from e
-
-    tn = PERMITTED_TECH_NODES
-    assert to_pass["rows"] >= 8, f'Rows must be >=8. Got {to_pass["rows"]}'
-    assert to_pass["cols"] >= 8, f'Columns must be >=8. Given: {to_pass["columns"]}'
-    assert to_pass["cols_active_at_once"] >= 1, (
-        f"Columns active at once must be >=1 and divide evenly into cols. "
-        f'Given: {to_pass["cols"]} cols, {to_pass["cols_active_at_once"]} cols active at once'
-    )
-    assert (
-        min(tn) <= to_pass["tech_node"] <= max(tn)
-    ), f'Tech node must be between {max(tn)} and {min(tn)}. Given: {to_pass["tech_node"]}'
-    assert (
-        to_pass["n_bits"] >= 1
-    ), f'Adder resolution must be >=1. Given: {to_pass["n_bits"]}'
-    assert (
-        to_pass["shift_register_n_bits"] >= 1
-    ), f'Shift register resolution must be >=1. Given: {to_pass["shift_register_n_bits"]}'
-    assert (
-        to_pass["pool_window"] >= 1
-    ), f'Max pool window size must be >=1. Given: {to_pass["window_size"]}'
-    assert (
-        to_pass["n_adder_tree_inputs"] > 0
-    ), f'Number of adder tree inputs must be >=1. Given: {to_pass["n_adder_tree_inputs"]}'
-    assert (
-        to_pass["n_mux_inputs"] > 0
-    ), f'Number of mux inputs must be >=1. Given: {to_pass["n_mux_inputs"]}'
-    assert (
-        to_pass["voltage_dac_bits"] > 0
-    ), f'Voltage DAC bits must be >=1. Given: {to_pass["voltage_dac_bits"]}'
-    assert (
-        to_pass["temporal_dac_bits"] > 0
-    ), f'Temporal DAC bits must be >=1. Given: {to_pass["temporal_dac_bits"]}'
-
-    if not os.path.exists(to_pass["cell_config"]):
-        cell_config = os.path.join(
-            SCRIPT_DIR, "cells", to_pass["cell_config"] + ".cell"
-        )
-        assert os.path.exists(cell_config), (
-            f'Cell config {to_pass["cell_config"]}" not found. '
-            f'Try a sample config: "{", ".join(SAMPLE_CELLS)}'
-        )
-        to_pass["cell_config"] = cell_config
-
-    # Interpolate the tech_node node. If p is in PERMITTED_TECH_NODES, then all this
-    # comes out to just p. If p is not in PERMITTED_TECH_NODES, then we interpolate
-    # between the two closest.
-    t = to_pass["tech_node"]
-    del to_pass["tech_node"]
-
-    for k in attributes:
-        if k not in to_pass:
-            to_pass[k] = attributes[k]
-
-    hi = min(p for p in PERMITTED_TECH_NODES if p >= t)
-    lo = max(p for p in PERMITTED_TECH_NODES if p <= t)
-    interp_pt = (t - lo) / (hi - lo) if hi - lo else 0
-    hi_crossbar = build_crossbar(to_pass, logger, overrides={"tech_node": hi})
-    lo_crossbar = build_crossbar(to_pass, logger, overrides={"tech_node": lo})
-    hi_est = callfunc(
-        hi_crossbar, to_pass["average_input_value"], to_pass["average_cell_value"]
-    )
-    lo_est = callfunc(
-        lo_crossbar, to_pass["average_input_value"], to_pass["average_cell_value"]
-    )
-    if hi != lo:
-        logger.debug(
-            "Interpolating between %s and %s. Interpolation " "point: %s",
-            lo,
-            hi,
-            interp_pt,
-        )
-
-    rval = {k: lo_est[k] + (hi_est[k] - lo_est[k]) * interp_pt for k in hi_est}
-    logger.debug("NeuroSim returned: %s", rval)
-
-    assert rval["Area"] >= 0, dedent(
-        """
-        NeuroSim returned an area less than zero. This may occur if the array or
-        memory cell size is too small for proper layout of peripheral
-        components. Try increasing the number of rows/columns or increasing the
-        cell size.
-        """
-    )
-
-    return rval
-
-
-def query_neurosim(
-    kind: str, attributes: dict, logger: logging.Logger
-) -> Dict[str, float]:
-    for n in ["array_adc", "array_col_drivers"]:
-        assert (
-            n in SUPPORTED_CLASSES
-        ), "Please update this method body to support the new NeuroSim names."
-
-    if kind == "array_col_drivers":
-        attributes["adc_resolution"] = 0
-        return get_neurosim_output(kind, attributes, logger)
-
-    if kind in ["array_adc", "array_col_drivers"]:
-        logger.info("First running WITH the ADC to get total energy")
-        with_adc = get_neurosim_output(kind, attributes, logger)
-        attributes["adc_resolution"] = 0
-        logger.info("Now running WITHOUT the ADC to get column driver energy")
-        without_adc = get_neurosim_output(kind, attributes, logger)
-        logger.info("Subtracting column driver energy to get ADC energy")
-        return {k: with_adc[k] - without_adc[k] for k in with_adc}
-    return get_neurosim_output(kind, attributes, logger)
 
 
 def dict_to_str(attributes: Dict) -> str:
