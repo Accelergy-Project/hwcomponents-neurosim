@@ -3,6 +3,7 @@ Interface for Neurosim. Exposes row, column, and cell energy in terms of OFF and
 includes integration of cell files from NVSim and NVMExplorer.
 """
 
+import logging
 from statistics import mean
 import threading
 from typing import Dict, List, Tuple
@@ -17,8 +18,6 @@ SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "default_config.cfg")
 NEUROSIM_PATH = os.path.join(SCRIPT_DIR, "NeuroSim/main")
 CFG_WRITE_PATH = os.path.join(SCRIPT_DIR, f"./neurosim_input_{MY_PID}.cfg")
-
-logger = None
 
 # ==================================================================================================
 # NVSIM/NVMEXPLORER -> NEUROSIM TRANSLATIONS
@@ -191,7 +190,9 @@ def cfgset(setting: str, text: str, value: float):
     return text
 
 
-def buildcfg(cellpath: str, cfgpath: str) -> Tuple[str, Dict[str, float]]:
+def buildcfg(
+    cellpath: str, cfgpath: str, logger: logging.Logger
+) -> Tuple[str, Dict[str, float]]:
     """Populates a Neurosim config with the values from the cell file and returns contents"""
     PARSED.clear()
     other_vars = {}
@@ -286,7 +287,9 @@ class Component:
         self.energy_per_cell, self.area, self.leakage = x(), x(), x()
 
 
-def replace_cfg(find: str, replace: str or Number, text: str, cfgfile: str):
+def replace_cfg(
+    find: str, replace: str or Number, text: str, cfgfile: str, logger: logging.Logger
+):
     """Replaces 'find' in text with 'replace'. Errors on not found."""
     find = f"SETME_{find.upper()}"
     if find not in text:
@@ -294,7 +297,8 @@ def replace_cfg(find: str, replace: str or Number, text: str, cfgfile: str):
         logger.error("|\t" + text.replace("\n", "\n| "))
         logger.error("OFFENDING CONFIG FILE ABOVE.")
         raise ValueError(
-            f"{find} not found in {cfgfile}. Is the default config file altered?"
+            f"{find} not found in {cfgfile}. Is the default config file altered? Text "
+            f"below:\n\n{text}"
         )
     return text.replace(find, str(replace))
 
@@ -317,6 +321,11 @@ class Crossbar:
         temporal_spiking: bool,
         voltage: float,
         threshold_voltage: float,
+        n_bits: int,
+        shift_register_n_bits: int,
+        pool_window: int,
+        n_adder_tree_inputs: int,
+        n_mux_inputs: int,
     ):
 
         self.comps = []
@@ -324,7 +333,6 @@ class Crossbar:
         self.rows = rows
         self.cols = cols
         self.cols_muxed = cols_muxed
-        self.tech_node = tech_node
         self.tech_node_nm = round(tech_node * 1e9)
         self.num_output_levels = 2**adc_resolution
         self.has_adc = adc_resolution > 0
@@ -339,17 +347,25 @@ class Crossbar:
         self.cell_write_energy_scale = 1
         self.voltage = voltage
         self.threshold_voltage = threshold_voltage
-
+        self.n_bits = n_bits
+        self.shift_register_n_bits = shift_register_n_bits
+        self.pool_window = pool_window
+        self.n_adder_tree_inputs = n_adder_tree_inputs
+        self.n_mux_inputs = n_mux_inputs
         self.max_activation_time = 2**self.temporal_dac_bits - 1
 
     def run_neurosim(
-        self, cellfile: str, cfgfile: str, other_args: List[Tuple[str, Number]] = ()
+        self,
+        cellfile: str,
+        cfgfile: str,
+        logger: logging.Logger,
+        other_args: List[Tuple[str, Number]] = (),
     ):
         """Runs Neurosim with the given parameters. Populates component data from the output."""
         logger.info("Building a crossbar with cell file %s", cellfile)
 
         # Build config
-        cfg, other_vars = buildcfg(cellfile, cfgfile)
+        cfg, other_vars = buildcfg(cellfile, cfgfile, logger)
         self.cell_read_leak_energy_scale *= other_vars.get(
             "cell_read_leak_energy_mult", 1
         )
@@ -361,20 +377,24 @@ class Crossbar:
             "cols_muxed",
             "rows",
             "cols",
-            "tech_node",
             "num_output_levels",
             "read_pulse_width",
             "voltage",
             "threshold_voltage",
             "tech_node_nm",
+            "shift_register_n_bits",
+            "n_bits",
+            "pool_window",
+            "n_adder_tree_inputs",
+            "n_mux_inputs",
         ]
         for to_set in my_set:
             logger.debug("Setting %s to %s", to_set, getattr(self, to_set))
-            cfg = replace_cfg(to_set, getattr(self, to_set), cfg, cfgfile)
+            cfg = replace_cfg(to_set, getattr(self, to_set), cfg, cfgfile, logger)
         for to_set in [a for a in other_args if a[0] not in my_set]:
             logger.debug("Setting %s to %s", to_set[0], to_set[1])
             if "cycle_period" not in to_set[0]:
-                cfg = replace_cfg(to_set[0], to_set[1], cfg, cfgfile)
+                cfg = replace_cfg(to_set[0], to_set[1], cfg, cfgfile, logger)
 
         # Write config
         inputpath = os.path.realpath(CFG_WRITE_PATH)

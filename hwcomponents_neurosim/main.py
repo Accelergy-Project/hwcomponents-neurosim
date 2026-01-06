@@ -1,4 +1,5 @@
 from abc import ABC
+import logging
 import math
 import sys
 import os
@@ -36,7 +37,8 @@ SHARED_PARAMS = {
     "tech_node": (
         f"REQUIRED: tech_node node. Must be between {max(PERMITTED_TECH_NODES)}  "
         f"and {min(PERMITTED_TECH_NODES)}.",
-        32,
+        32e-9,
+        float,
     ),
 }
 
@@ -194,8 +196,6 @@ SUPPORTED_CLASSES = {
     "nor_gate": (neurointerface.nor_gate_stats, SHARED_PARAMS),
 }
 
-logger = None
-
 
 class _NeurosimPlugInComponent(EnergyAreaModel):
     """
@@ -306,9 +306,11 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
         self.n_adder_tree_inputs = n_adder_tree_inputs
         self.n_mux_inputs = n_mux_inputs
 
-        leakage_power = self.query_neurosim(self._get_component_name())["Leakage"]
-        area = self.query_neurosim(self._get_component_name())["Area"]
-        super().__init__(leakage_power=leakage_power, area=area)
+        leak_power = self.query_neurosim(self._get_component_name(), self.logger)[
+            "Leakage"
+        ]
+        area = self.query_neurosim(self._get_component_name(), self.logger)["Area"]
+        super().__init__(leak_power=leak_power, area=area)
 
     def build_crossbar(self, overrides: Dict[str, float] = {}):
         cell_config = self.cell_config
@@ -340,7 +342,7 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
         if key not in CACHE:
             CACHE[key] = neurointerface.Crossbar(**attrs)
             CACHE[key].run_neurosim(
-                cell_config, neurointerface.DEFAULT_CONFIG, peripheral_args
+                cell_config, neurointerface.DEFAULT_CONFIG, self.logger, peripheral_args
             )
         else:
             self.logger.debug(
@@ -387,7 +389,7 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
         to_pass = {k: v[1] for k, v in ALL_PARAMS.items()}
         # Get call function ready
         callfunc = self._get_stats_func
-        params = self._params
+        params = {k: ALL_PARAMS[k] for k in self._params}
         docs = {k: v[0] for k, v in params.items()}
 
         # Get required parameters
@@ -499,7 +501,7 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
         )
         return rval
 
-    def query_neurosim(self, kind: str) -> Dict[str, float]:
+    def query_neurosim(self, kind: str, logger: logging.Logger) -> Dict[str, float]:
         attributes = {
             "cell_config": self.cell_config,
             "tech_node": self.tech_node,
@@ -545,7 +547,9 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
 
     @actionDynamicEnergy
     def read(self) -> float:
-        return self.query_neurosim(self._get_component_name())["Read Energy"]
+        return self.query_neurosim(self._get_component_name(), self.logger)[
+            "Read Energy"
+        ]
 
     @actionDynamicEnergy
     def compute(self) -> float:
@@ -561,7 +565,9 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
 
     @actionDynamicEnergy
     def write(self) -> float:
-        return self.query_neurosim(self._get_component_name())["Write Energy"]
+        return self.query_neurosim(self._get_component_name(), self.logger)[
+            "Write Energy"
+        ]
 
     @actionDynamicEnergy
     def update(self) -> float:
@@ -588,7 +594,7 @@ class NORGate(_NeurosimPlugInComponent):
     """
 
     component_name = ["NORGate", "NeuroSimNORGate"]
-    _get_stats_func = neurointerface.nor_gate_stats
+    _get_stats_func = staticmethod(neurointerface.nor_gate_stats)
     _params = ["tech_node", "cycle_period"]
 
     def __init__(self, tech_node: float, cycle_period: float):
@@ -630,7 +636,7 @@ class NANDGate(_NeurosimPlugInComponent):
     """
 
     component_name = ["NANDGate", "NeuroSimNANDGate"]
-    _get_stats_func = neurointerface.nand_gate_stats
+    _get_stats_func = staticmethod(neurointerface.nand_gate_stats)
     _params = ["tech_node", "cycle_period"]
 
     def __init__(self, tech_node: float, cycle_period: float):
@@ -667,7 +673,7 @@ class NOTGate(_NeurosimPlugInComponent):
     """
 
     component_name = ["NOTGate", "NeuroSimNOTGate"]
-    _get_stats_func = neurointerface.not_gate_stats
+    _get_stats_func = staticmethod(neurointerface.not_gate_stats)
     _params = ["tech_node", "cycle_period"]
 
     def __init__(self, tech_node: float, cycle_period: float):
@@ -708,7 +714,7 @@ class FlipFlop(_NeurosimPlugInComponent):
     """
 
     component_name = ["FlipFlop", "NeuroSimFlipFlop"]
-    _get_stats_func = neurointerface.flip_flop_stats
+    _get_stats_func = staticmethod(neurointerface.flip_flop_stats)
     _params = ["tech_node", "cycle_period", "n_bits"]
 
     def __init__(self, tech_node: float, cycle_period: float, n_bits: int):
@@ -729,6 +735,7 @@ class FlipFlop(_NeurosimPlugInComponent):
         Returns the energy for one flip-flop write operation in Joules.
         """
         return super().write()
+
 
 class Mux(_NeurosimPlugInComponent):
     """
@@ -758,7 +765,7 @@ class Mux(_NeurosimPlugInComponent):
     """
 
     component_name = ["Mux", "NeuroSimMux"]
-    _get_stats_func = neurointerface.mux_stats
+    _get_stats_func = staticmethod(neurointerface.mux_stats)
     _params = ["tech_node", "cycle_period", "n_bits", "n_mux_inputs"]
 
     def __init__(
@@ -806,7 +813,7 @@ class Adder(_NeurosimPlugInComponent):
     """
 
     component_name = ["Adder", "NeuroSimAdder", "IntAdder"]
-    _get_stats_func = neurointerface.adder_stats
+    _get_stats_func = staticmethod(neurointerface.adder_stats)
     _params = ["tech_node", "cycle_period", "n_bits"]
 
     def __init__(self, tech_node: float, cycle_period: float, n_bits: int):
@@ -865,8 +872,9 @@ class AdderTree(_NeurosimPlugInComponent):
     n_adder_tree_inputs : int
         The number of values added by the adder tree.
     """
+
     component_name = ["AdderTree", "NeuroSimAdderTree", "IntAdderTree"]
-    _get_stats_func = neurointerface.adder_tree_stats
+    _get_stats_func = staticmethod(neurointerface.adder_tree_stats)
     _params = ["tech_node", "cycle_period", "n_bits", "n_adder_tree_inputs"]
 
     def __init__(
@@ -936,7 +944,7 @@ class MaxPool(_NeurosimPlugInComponent):
     """
 
     component_name = ["MaxPool", "NeuroSimMaxPool"]
-    _get_stats_func = neurointerface.max_pool_stats
+    _get_stats_func = staticmethod(neurointerface.max_pool_stats)
     _params = ["tech_node", "cycle_period", "n_bits", "pool_window"]
 
     def __init__(
@@ -980,7 +988,7 @@ class ShiftAdd(_NeurosimPlugInComponent):
     """
 
     component_name = ["ShiftAdd", "NeuroSimShiftAdd"]
-    _get_stats_func = neurointerface.shift_add_stats
+    _get_stats_func = staticmethod(neurointerface.shift_add_stats)
     _params = ["tech_node", "cycle_period", "n_bits", "shift_register_n_bits"]
 
     def __init__(
@@ -1177,7 +1185,7 @@ class RowDrivers(_NeurosimPIMComponent):
     """
 
     component_name = ["ArrayRowDrivers", "NeuroSimArrayRowDrivers"]
-    _get_stats_func = neurointerface.row_stats
+    _get_stats_func = staticmethod(neurointerface.row_stats)
 
 
 class ColDrivers(_NeurosimPIMComponent):
@@ -1229,8 +1237,13 @@ class ColDrivers(_NeurosimPIMComponent):
         The average value of a cell. Must be between 0 and 1.
     """
 
-    component_name = ["ArrayColDrivers", "NeuroSimArrayColDrivers"]
-    _get_stats_func = neurointerface.col_stats
+    component_name = [
+        "ArrayColDrivers",
+        "NeuroSimArrayColDrivers",
+        "ArrayColumnDrivers",
+        "NeuroSimArrayColumnDrivers",
+    ]
+    _get_stats_func = staticmethod(neurointerface.col_stats)
 
 
 class ADC(_NeurosimPIMComponent):
@@ -1281,8 +1294,9 @@ class ADC(_NeurosimPIMComponent):
     average_cell_value : float, optional
         The average value of a cell. Must be between 0 and 1.
     """
+
     component_name = ["ArrayADC", "NeuroSimArrayADC"]
-    _get_stats_func = neurointerface.col_stats
+    _get_stats_func = staticmethod(neurointerface.col_stats)
 
 
 class MemoryCell(_NeurosimPIMComponent):
@@ -1332,8 +1346,9 @@ class MemoryCell(_NeurosimPIMComponent):
     average_cell_value : float, optional
         The average value of a cell. Must be between 0 and 1.
     """
+
     component_name = ["MemoryCell", "NeuroSimMemoryCell"]
-    _get_stats_func = neurointerface.cell_stats
+    _get_stats_func = staticmethod(neurointerface.cell_stats)
 
 
 # ==================================================================================================
@@ -1341,7 +1356,9 @@ class MemoryCell(_NeurosimPIMComponent):
 # ==================================================================================================
 
 
-def build_crossbar(attrs: dict, overrides: dict = {}) -> neurointerface.Crossbar:
+def build_crossbar(
+    attrs: dict, logger: logging.Logger, overrides: dict = {}
+) -> neurointerface.Crossbar:
     """Builds a crossbar from the given attributes"""
     cell_config = attrs["cell_config"]
     peripheral_args = [(k, v) for k, v in attrs.items() if k in PERIPHERAL_PARAMS]
@@ -1359,13 +1376,18 @@ def build_crossbar(attrs: dict, overrides: dict = {}) -> neurointerface.Crossbar
         "temporal_spiking": attrs["temporal_spiking"],
         "voltage": attrs["voltage"],
         "threshold_voltage": attrs["threshold_voltage"],
+        "n_bits": attrs["n_bits"],
+        "shift_register_n_bits": attrs["shift_register_n_bits"],
+        "pool_window": attrs["pool_window"],
+        "n_adder_tree_inputs": attrs["n_adder_tree_inputs"],
+        "n_mux_inputs": attrs["n_mux_inputs"],
     }
     attrs.update(overrides)
     key = dict_to_str(attrs)
     if key not in CACHE:
         CACHE[key] = neurointerface.Crossbar(**attrs)
         CACHE[key].run_neurosim(
-            cell_config, neurointerface.DEFAULT_CONFIG, peripheral_args
+            cell_config, neurointerface.DEFAULT_CONFIG, logger, peripheral_args
         )
     else:
         logger.debug(
@@ -1376,7 +1398,9 @@ def build_crossbar(attrs: dict, overrides: dict = {}) -> neurointerface.Crossbar
     return CACHE[key]
 
 
-def get_neurosim_output(kind: str, attributes: dict) -> Dict[str, float]:
+def get_neurosim_output(
+    kind: str, attributes: dict, logger: logging.Logger
+) -> Dict[str, float]:
     """Queries Neurosim for the stats for 'kind' component with 'attributes' attributes"""
     assert kind in SUPPORTED_CLASSES, f"Unsupported primitive: {kind}"
     logger.debug("Querying Neurosim for %s with attributes: %s", kind, attributes)
@@ -1457,8 +1481,9 @@ def get_neurosim_output(kind: str, attributes: dict) -> Dict[str, float]:
         )
         to_pass["cell_config"] = cell_config
 
-    # Interpolate the tech_node node. If p is in PERMITTED_TECH_NODES, then all this comes out
-    # to just p. If p is not in PERMITTED_TECH_NODES, then we interpolate between the two closest.
+    # Interpolate the tech_node node. If p is in PERMITTED_TECH_NODES, then all this
+    # comes out to just p. If p is not in PERMITTED_TECH_NODES, then we interpolate
+    # between the two closest.
     t = to_pass["tech_node"]
     del to_pass["tech_node"]
 
@@ -1469,8 +1494,8 @@ def get_neurosim_output(kind: str, attributes: dict) -> Dict[str, float]:
     hi = min(p for p in PERMITTED_TECH_NODES if p >= t)
     lo = max(p for p in PERMITTED_TECH_NODES if p <= t)
     interp_pt = (t - lo) / (hi - lo) if hi - lo else 0
-    hi_crossbar = build_crossbar(overrides={"tech_node": hi})
-    lo_crossbar = build_crossbar(overrides={"tech_node": lo})
+    hi_crossbar = build_crossbar(to_pass, logger, overrides={"tech_node": hi})
+    lo_crossbar = build_crossbar(to_pass, logger, overrides={"tech_node": lo})
     hi_est = callfunc(
         hi_crossbar, to_pass["average_input_value"], to_pass["average_cell_value"]
     )
@@ -1500,7 +1525,9 @@ def get_neurosim_output(kind: str, attributes: dict) -> Dict[str, float]:
     return rval
 
 
-def query_neurosim(kind: str, attributes: dict) -> Dict[str, float]:
+def query_neurosim(
+    kind: str, attributes: dict, logger: logging.Logger
+) -> Dict[str, float]:
     for n in ["array_adc", "array_col_drivers"]:
         assert (
             n in SUPPORTED_CLASSES
@@ -1508,17 +1535,17 @@ def query_neurosim(kind: str, attributes: dict) -> Dict[str, float]:
 
     if kind == "array_col_drivers":
         attributes["adc_resolution"] = 0
-        return get_neurosim_output(kind, attributes)
+        return get_neurosim_output(kind, attributes, logger)
 
     if kind in ["array_adc", "array_col_drivers"]:
         logger.info("First running WITH the ADC to get total energy")
-        with_adc = get_neurosim_output(kind, attributes)
+        with_adc = get_neurosim_output(kind, attributes, logger)
         attributes["adc_resolution"] = 0
         logger.info("Now running WITHOUT the ADC to get column driver energy")
-        without_adc = get_neurosim_output(kind, attributes)
+        without_adc = get_neurosim_output(kind, attributes, logger)
         logger.info("Subtracting column driver energy to get ADC energy")
         return {k: with_adc[k] - without_adc[k] for k in with_adc}
-    return get_neurosim_output(kind, attributes)
+    return get_neurosim_output(kind, attributes, logger)
 
 
 def dict_to_str(attributes: Dict) -> str:
