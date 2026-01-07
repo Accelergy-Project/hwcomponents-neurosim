@@ -5,7 +5,7 @@ import sys
 import os
 from typing import Dict
 from textwrap import dedent
-from hwcomponents import EnergyAreaModel, actionDynamicEnergy
+from hwcomponents import ComponentModel, action
 import hwcomponents_neurosim.neurointerface as neurointerface
 
 # ==================================================================================================
@@ -197,7 +197,7 @@ SUPPORTED_CLASSES = {
 }
 
 
-class _NeurosimPlugInComponent(EnergyAreaModel):
+class _NeurosimPlugInComponent(ComponentModel):
     """
     A base class for Neurosim plug-in components.
 
@@ -549,32 +549,34 @@ class _NeurosimPlugInComponent(EnergyAreaModel):
         else:
             return self.component_name[0]
 
-    @actionDynamicEnergy
-    def read(self) -> float:
-        return self.query_neurosim(self._get_component_name(), self.logger)[
+    @action
+    def read(self) -> tuple[float, float]:
+        energy = self.query_neurosim(self._get_component_name(), self.logger)[
             "Read Energy"
         ]
+        return energy, 0.0
 
-    @actionDynamicEnergy
-    def compute(self) -> float:
+    @action
+    def compute(self) -> tuple[float, float]:
         return self.read()
 
-    @actionDynamicEnergy
-    def add(self) -> float:
+    @action
+    def add(self) -> tuple[float, float]:
         return self.read()
 
-    @actionDynamicEnergy
-    def convert(self) -> float:
+    @action
+    def convert(self) -> tuple[float, float]:
         return self.read()
 
-    @actionDynamicEnergy
-    def write(self) -> float:
-        return self.query_neurosim(self._get_component_name(), self.logger)[
+    @action
+    def write(self) -> tuple[float, float]:
+        energy = self.query_neurosim(self._get_component_name(), self.logger)[
             "Write Energy"
         ]
+        return energy, 0.0
 
-    @actionDynamicEnergy
-    def update(self) -> float:
+    @action
+    def update(self) -> tuple[float, float]:
         return self.write()
 
 
@@ -607,15 +609,14 @@ class NORGate(_NeurosimPlugInComponent):
             cycle_period=cycle_period,
         )
 
-    @actionDynamicEnergy
-    def read(self) -> float:
+    @action
+    def read(self) -> tuple[float, float]:
         """
         Returns the energy for one NOR operation in Joules.
 
         Returns
         -------
-        float
-            The energy for one NOR operation in Joules.
+        (energy, latency): Tuple in (Joules, seconds).
         """
         return super().read()
 
@@ -649,10 +650,10 @@ class NANDGate(_NeurosimPlugInComponent):
             cycle_period=cycle_period,
         )
 
-    @actionDynamicEnergy
-    def read(self) -> float:
+    @action
+    def read(self) -> tuple[float, float]:
         """
-        Returns the energy for one NAND operation in Joules.
+        Returns the energy and latency for one NAND operation.
         """
         return super().read()
 
@@ -686,10 +687,10 @@ class NOTGate(_NeurosimPlugInComponent):
             cycle_period=cycle_period,
         )
 
-    @actionDynamicEnergy
-    def read(self) -> float:
+    @action
+    def read(self) -> tuple[float, float]:
         """
-        Returns the energy for one NOT operation in Joules.
+        Returns the energy and latency for one NOT operation.
         """
         return super().read()
 
@@ -728,15 +729,15 @@ class FlipFlop(_NeurosimPlugInComponent):
             n_bits=n_bits,
         )
 
-    def read(self):
+    def read(self) -> tuple[float, float]:
         """
-        Returns the energy for one flip-flop read operation in Joules.
+        Returns the energy and latency for one flip-flop read operation.
         """
         return super().read()
 
-    def write(self):
+    def write(self) -> tuple[float, float]:
         """
-        Returns the energy for one flip-flop write operation in Joules.
+        Returns the energy and latency for one flip-flop write operation.
         """
         return super().write()
 
@@ -786,9 +787,9 @@ class Mux(_NeurosimPlugInComponent):
             n_mux_inputs=n_mux_inputs,
         )
 
-    def read(self):
+    def read(self) -> tuple[float, float]:
         """
-        Returns the energy for one muxing operation in Joules.
+        Returns the energy and latency for one muxing operation.
         """
         return super().read()
 
@@ -827,25 +828,23 @@ class Adder(_NeurosimPlugInComponent):
             n_bits=n_bits,
         )
 
-    def add(self):
+    def add(self) -> tuple[float, float]:
         """
         Returns the energy for one addition operation in Joules.
 
         Returns
         -------
-        float
-            The energy for one addition operation in Joules.
+        (energy, latency): Tuple in (Joules, seconds).
         """
         return super().add()
 
-    def read(self):
+    def read(self) -> tuple[float, float]:
         """
         Returns the energy for one addition operation in Joules.
 
         Returns
         -------
-        float
-            The energy for one addition operation in Joules.
+        (energy, latency): Tuple in (Joules, seconds).
         """
         return super().read()
 
@@ -895,27 +894,25 @@ class AdderTree(_NeurosimPlugInComponent):
             n_adder_tree_inputs=n_adder_tree_inputs,
         )
 
-    @actionDynamicEnergy
-    def add(self) -> float:
+    @action
+    def add(self) -> tuple[float, float]:
         """
         Returns the energy for one addition operation in Joules.
 
         Returns
         -------
-        float
-            The energy for one addition operation in Joules.
+        (energy, latency): Tuple in (Joules, seconds).
         """
         return super().add()
 
-    @actionDynamicEnergy
-    def read(self) -> float:
+    @action
+    def read(self) -> tuple[float, float]:
         """
         Returns the energy for one addition operation in Joules.
 
         Returns
         -------
-        float
-            The energy for one addition operation in Joules.
+        (energy, latency): Tuple in (Joules, seconds).
         """
         return super().read()
 
@@ -1009,24 +1006,24 @@ class ShiftAdd(_NeurosimPlugInComponent):
             shift_register_n_bits=shift_register_n_bits,
         )
 
-    @actionDynamicEnergy
-    def read(self) -> float:
+    @action
+    def read(self) -> tuple[float, float]:
         """
-        Returns the energy to read the shift-and-add unit's output in Joules.
+        Returns the energy and latency to read the shift-and-add unit's output.
         """
         return super().read()
 
-    @actionDynamicEnergy
-    def write(self) -> float:
+    @action
+    def write(self) -> tuple[float, float]:
         """
-        Returns the energy to shift-and-add in Joules.
+        Returns the energy and latency to shift-and-add.
         """
         return super().shift_add()
 
-    @actionDynamicEnergy
-    def shift_add(self) -> float:
+    @action
+    def shift_add(self) -> tuple[float, float]:
         """
-        Returns the energy to shift-and-add in Joules.
+        Returns the energy and latency to shift-and-add.
         """
         return super().shift_add()
 

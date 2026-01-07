@@ -1,4 +1,5 @@
 """Setup.py to ensure hwcomponents._version_scheme is importable during build."""
+
 import sys
 import os
 from pathlib import Path
@@ -25,7 +26,9 @@ class CustomBuildCommand(build):
     def run(self):
         try:
             print("Running 'make build'...")
-            subprocess.check_call(["make", "build"], cwd=os.path.dirname(os.path.realpath(__file__)))
+            subprocess.check_call(
+                ["make", "build"], cwd=os.path.dirname(os.path.realpath(__file__))
+            )
             print("'make build' completed successfully")
         except subprocess.CalledProcessError as e:
             print(f"Error running 'make build': {e}")
