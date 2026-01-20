@@ -285,6 +285,7 @@ class Component:
 
         self.activation_energy, self.energy_per_row, self.energy_per_col = x(), x(), x()
         self.energy_per_cell, self.area, self.leakage = x(), x(), x()
+        self.latency = x()
 
 
 def replace_cfg(
@@ -556,9 +557,14 @@ class Crossbar:
             * self.cycle_period
         )
 
+    def latency(self, target: str) -> float:
+        """Returns the latency of a given misc component."""
+        comps = self.get_components(True, True)
+        return sum(c.latency for c in comps if target.lower() in c.name)
+
 
 def stats2dict(
-    read_energy: float, write_energy: float, area: float, leakage: float
+    read_energy: float, write_energy: float, area: float, leakage: float, latency: float
 ) -> Dict[str, float]:
     """Returns a dictionary of stats."""
     return {
@@ -566,6 +572,7 @@ def stats2dict(
         "Write Energy": write_energy,
         "Area": area,
         "Leakage": leakage,
+        "Latency": latency,
     }
 
 
@@ -588,7 +595,10 @@ def rowcol_stats(
     leakage = crossbar.leakage(kind)
     read = read_off + (read_on - read_off) * avg_input
     write = write_on  # Can't gate writes becasuse we still have to reset cells
-    return stats2dict(read, write, area, leakage * crossbar.cycle_period)
+
+    latency = crossbar.latency(kind)
+
+    return stats2dict(read, write, area, leakage * crossbar.cycle_period, latency)
 
 
 def row_stats(
@@ -608,6 +618,8 @@ def row_stats(
     dac_scale = 2 ** (crossbar.voltage_dac_bits - 1) - 1
     stats["Area"] = stats["Area"] + stats_dac["Area"] * dac_scale
     stats["Leakage"] = stats["Leakage"] + stats_dac["Leakage"] * dac_scale
+    stats["Latency"] = max(stats["Latency"], crossbar.read_pulse_width)
+    stats["Latency"] *= crossbar.max_activation_time
     return stats
 
 
@@ -642,6 +654,7 @@ def cell_stats(
         write_memcell_energy * wscale,
         crossbar.area_per_cell(),
         crossbar.leakage_per_cell() * rlscale,
+        crossbar.max_activation_time * crossbar.read_pulse_width,
     )
 
 
@@ -652,6 +665,7 @@ def misc_stats(crossbar: Crossbar, target: str) -> Dict[str, float]:
         0,
         crossbar.area(target),
         crossbar.leakage(target),
+        crossbar.latency(target),
     )
 
 

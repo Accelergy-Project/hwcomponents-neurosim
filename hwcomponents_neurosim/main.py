@@ -5,6 +5,8 @@ import sys
 import os
 from typing import Dict
 from textwrap import dedent
+
+from hwcomponents.scaling import linear, reciprocal
 from hwcomponents import ComponentModel, action
 import hwcomponents_neurosim.neurointerface as neurointerface
 
@@ -253,6 +255,8 @@ class _NeurosimPlugInComponent(ComponentModel):
         Used only in adder trees. The number of inputs to the adder tree.
     n_mux_inputs : int, optional
         Used only in muxes. The number of inputs to the mux.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = "_override_this_name_"
@@ -283,6 +287,7 @@ class _NeurosimPlugInComponent(ComponentModel):
         pool_window: int = 2,
         n_adder_tree_inputs: int = 2,
         n_mux_inputs: int = 2,
+        n_instances: int = 1,
     ):
         self.cell_config = cell_config
         self.tech_node = tech_node
@@ -311,6 +316,14 @@ class _NeurosimPlugInComponent(ComponentModel):
         ]
         area = self.query_neurosim(self._get_component_name(), self.logger)["Area"]
         super().__init__(leak_power=leak_power, area=area)
+        self.n_instances: int = self.scale(
+            "n_instances",
+            n_instances,
+            1,
+            area_scale_function=linear,
+            latency_scale_function=reciprocal,
+            leak_power_scale_function=linear,
+        )
 
     def build_crossbar(self, overrides: Dict[str, float] = {}):
         cell_config = self.cell_config
@@ -551,10 +564,8 @@ class _NeurosimPlugInComponent(ComponentModel):
 
     @action
     def read(self) -> tuple[float, float]:
-        energy = self.query_neurosim(self._get_component_name(), self.logger)[
-            "Read Energy"
-        ]
-        return energy, 0.0
+        vals = self.query_neurosim(self._get_component_name(), self.logger)
+        return vals["Read Energy"], vals["Latency"]
 
     @action
     def compute(self) -> tuple[float, float]:
@@ -570,10 +581,8 @@ class _NeurosimPlugInComponent(ComponentModel):
 
     @action
     def write(self) -> tuple[float, float]:
-        energy = self.query_neurosim(self._get_component_name(), self.logger)[
-            "Write Energy"
-        ]
-        return energy, 0.0
+        vals = self.query_neurosim(self._get_component_name(), self.logger)
+        return vals["Write Energy"], vals["Latency"]
 
     @action
     def update(self) -> tuple[float, float]:
@@ -590,6 +599,8 @@ class NORGate(_NeurosimPlugInComponent):
         The technology node in meters.
     cycle_period : float
         The time period of the system clock in seconds.
+    n_instances : int, optional
+        The number of instances of the component.
 
     Attributes
     ----------
@@ -597,16 +608,19 @@ class NORGate(_NeurosimPlugInComponent):
         The technology node in meters.
     cycle_period : float
         The time period of the system clock in seconds.
+    n_instances : int
+        The number of instances of the component.
     """
 
     component_name = ["NORGate", "NeuroSimNORGate"]
     _get_stats_func = staticmethod(neurointerface.nor_gate_stats)
     _params = ["tech_node", "cycle_period"]
 
-    def __init__(self, tech_node: float, cycle_period: float):
+    def __init__(self, tech_node: float, cycle_period: float, n_instances: int = 1):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
+            n_instances=n_instances,
         )
 
     @action
@@ -631,6 +645,8 @@ class NANDGate(_NeurosimPlugInComponent):
         The technology node in meters.
     cycle_period : float
         The time period of the system clock in seconds.
+    n_instances : int, optional
+        The number of instances of the component.
 
     Attributes
     ----------
@@ -638,16 +654,19 @@ class NANDGate(_NeurosimPlugInComponent):
         The technology node in meters.
     cycle_period : float
         The time period of the system clock in seconds.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["NANDGate", "NeuroSimNANDGate"]
     _get_stats_func = staticmethod(neurointerface.nand_gate_stats)
     _params = ["tech_node", "cycle_period"]
 
-    def __init__(self, tech_node: float, cycle_period: float):
+    def __init__(self, tech_node: float, cycle_period: float, n_instances: int = 1):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
+            n_instances=n_instances,
         )
 
     @action
@@ -668,6 +687,8 @@ class NOTGate(_NeurosimPlugInComponent):
         The technology node in meters.
     cycle_period : float
         The time period of the system clock in seconds.
+    n_instances : int, optional
+        The number of instances of the component.
 
     Attributes
     ----------
@@ -675,16 +696,19 @@ class NOTGate(_NeurosimPlugInComponent):
         The technology node in meters.
     cycle_period : float
         The time period of the system clock in seconds.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["NOTGate", "NeuroSimNOTGate"]
     _get_stats_func = staticmethod(neurointerface.not_gate_stats)
     _params = ["tech_node", "cycle_period"]
 
-    def __init__(self, tech_node: float, cycle_period: float):
+    def __init__(self, tech_node: float, cycle_period: float, n_instances: int = 1):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
+            n_instances=n_instances,
         )
 
     @action
@@ -707,6 +731,8 @@ class FlipFlop(_NeurosimPlugInComponent):
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits, and therefore the number of flip-flops.
+    n_instances : int, optional
+        The number of instances of the component.
 
     Attributes
     ----------
@@ -716,17 +742,20 @@ class FlipFlop(_NeurosimPlugInComponent):
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits, and therefore the number of flip-flops.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["FlipFlop", "NeuroSimFlipFlop"]
     _get_stats_func = staticmethod(neurointerface.flip_flop_stats)
     _params = ["tech_node", "cycle_period", "n_bits"]
 
-    def __init__(self, tech_node: float, cycle_period: float, n_bits: int):
+    def __init__(self, tech_node: float, cycle_period: float, n_bits: int, n_instances: int = 1):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
             n_bits=n_bits,
+            n_instances=n_instances,
         )
 
     def read(self) -> tuple[float, float]:
@@ -756,6 +785,8 @@ class Mux(_NeurosimPlugInComponent):
         The number of bits for each of the mux's inputs.
     n_mux_inputs : int
         The number of inputs to the mux.
+    n_instances : int, optional
+        The number of instances of the component.
 
     Attributes
     ----------
@@ -767,6 +798,8 @@ class Mux(_NeurosimPlugInComponent):
         The number of bits for each of the mux's inputs.
     n_mux_inputs : int
         The number of inputs to the mux.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["Mux", "NeuroSimMux"]
@@ -779,12 +812,14 @@ class Mux(_NeurosimPlugInComponent):
         cycle_period: float,
         n_bits: int,
         n_mux_inputs: int,
+        n_instances: int = 1,
     ):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
             n_bits=n_bits,
             n_mux_inputs=n_mux_inputs,
+            n_instances=n_instances,
         )
 
     def read(self) -> tuple[float, float]:
@@ -806,6 +841,8 @@ class Adder(_NeurosimPlugInComponent):
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits of the adder's inputs.
+    n_instances : int, optional
+        The number of instances of the component.
 
     Attributes
     ----------
@@ -815,17 +852,20 @@ class Adder(_NeurosimPlugInComponent):
         The time period of the system clock in seconds.
     n_bits : int
         The number of bits of the adder's inputs.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["Adder", "NeuroSimAdder", "IntAdder"]
     _get_stats_func = staticmethod(neurointerface.adder_stats)
     _params = ["tech_node", "cycle_period", "n_bits"]
 
-    def __init__(self, tech_node: float, cycle_period: float, n_bits: int):
+    def __init__(self, tech_node: float, cycle_period: float, n_bits: int, n_instances: int = 1):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
             n_bits=n_bits,
+            n_instances=n_instances,
         )
 
     def add(self) -> tuple[float, float]:
@@ -863,6 +903,8 @@ class AdderTree(_NeurosimPlugInComponent):
         The number of bits of the adder tree's inputs.
     n_adder_tree_inputs : int
         The number of values added by the adder tree.
+    n_instances : int, optional
+        The number of instances of the component.
 
     Attributes
     ----------
@@ -874,6 +916,8 @@ class AdderTree(_NeurosimPlugInComponent):
         The number of bits of the adder tree's inputs.
     n_adder_tree_inputs : int
         The number of values added by the adder tree.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["AdderTree", "NeuroSimAdderTree", "IntAdderTree"]
@@ -886,12 +930,14 @@ class AdderTree(_NeurosimPlugInComponent):
         cycle_period: float,
         n_bits: int,
         n_adder_tree_inputs: int,
+        n_instances: int = 1,
     ):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
             n_bits=n_bits,
             n_adder_tree_inputs=n_adder_tree_inputs,
+            n_instances=n_instances,
         )
 
     @action
@@ -931,6 +977,8 @@ class MaxPool(_NeurosimPlugInComponent):
         The number of bits of the max pool unit's inputs.
     pool_window : int
         The window size of max pooling.
+    n_instances : int, optional
+        The number of instances of the component.
 
     Attributes
     ----------
@@ -942,6 +990,8 @@ class MaxPool(_NeurosimPlugInComponent):
         The number of bits of the max pool unit's inputs.
     pool_window : int
         The window size of max pooling.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["MaxPool", "NeuroSimMaxPool"]
@@ -949,13 +999,14 @@ class MaxPool(_NeurosimPlugInComponent):
     _params = ["tech_node", "cycle_period", "n_bits", "pool_window"]
 
     def __init__(
-        self, tech_node: float, cycle_period: float, n_bits: int, pool_window: int
+        self, tech_node: float, cycle_period: float, n_bits: int, pool_window: int, n_instances: int = 1
     ):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
             n_bits=n_bits,
             pool_window=pool_window,
+            n_instances=n_instances,
         )
 
 
@@ -975,6 +1026,8 @@ class ShiftAdd(_NeurosimPlugInComponent):
         The number of bits of the shift-and-add unit's inputs.
     shift_register_n_bits : int
         The number of bits of the shift register.
+    n_instances : int, optional
+        The number of instances of the component.
 
     Attributes
     ----------
@@ -986,6 +1039,8 @@ class ShiftAdd(_NeurosimPlugInComponent):
         The number of bits of the shift-and-add unit's inputs.
     shift_register_n_bits : int
         The number of bits of the shift register.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["ShiftAdd", "NeuroSimShiftAdd"]
@@ -998,12 +1053,14 @@ class ShiftAdd(_NeurosimPlugInComponent):
         cycle_period: float,
         n_bits: int,
         shift_register_n_bits: int,
+        n_instances: int = 1,
     ):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
             n_bits=n_bits,
             shift_register_n_bits=shift_register_n_bits,
+            n_instances=n_instances,
         )
 
     @action
@@ -1075,6 +1132,8 @@ class _NeurosimPIMComponent(_NeurosimPlugInComponent):
         The average input value to a row. Must be between 0 and 1.
     average_cell_value : float, optional
         The average value of a cell. Must be between 0 and 1.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = "_override_this_name_"
@@ -1115,6 +1174,7 @@ class _NeurosimPIMComponent(_NeurosimPlugInComponent):
         voltage: float = 0,
         threshold_voltage: float = 0,
         sequential: bool = False,
+        n_instances: int = 1,
     ):
         super().__init__(
             tech_node=tech_node,
@@ -1133,6 +1193,7 @@ class _NeurosimPIMComponent(_NeurosimPlugInComponent):
             voltage=voltage,
             threshold_voltage=threshold_voltage,
             sequential=sequential,
+            n_instances=n_instances,
         )
 
 
@@ -1183,6 +1244,8 @@ class RowDrivers(_NeurosimPIMComponent):
         The average input value to a row. Must be between 0 and 1.
     average_cell_value : float, optional
         The average value of a cell. Must be between 0 and 1.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["ArrayRowDrivers", "NeuroSimArrayRowDrivers"]
@@ -1236,6 +1299,8 @@ class ColDrivers(_NeurosimPIMComponent):
         The average input value to a row. Must be between 0 and 1.
     average_cell_value : float, optional
         The average value of a cell. Must be between 0 and 1.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = [
@@ -1294,6 +1359,8 @@ class ADC(_NeurosimPIMComponent):
         The average input value to a row. Must be between 0 and 1.
     average_cell_value : float, optional
         The average value of a cell. Must be between 0 and 1.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["ArrayADC", "NeuroSimArrayADC"]
@@ -1346,6 +1413,8 @@ class MemoryCell(_NeurosimPIMComponent):
         The average input value to a row. Must be between 0 and 1.
     average_cell_value : float, optional
         The average value of a cell. Must be between 0 and 1.
+    n_instances : int, optional
+        The number of instances of the component.
     """
 
     component_name = ["MemoryCell", "NeuroSimMemoryCell"]
