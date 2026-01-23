@@ -354,6 +354,8 @@ class Crossbar:
         self.n_adder_tree_inputs = n_adder_tree_inputs
         self.n_mux_inputs = n_mux_inputs
         self.max_activation_time = 2**self.temporal_dac_bits - 1
+        self.min_latency = None
+        self.cols_active_at_once = None
 
     def run_neurosim(
         self,
@@ -438,24 +440,6 @@ class Crossbar:
         self.comps = [
             Component(line) for line in results.split("\n") if "<COMPONENT>" in line
         ]
-        for c in self.comps:
-            if "adc" in c.name:
-                c.area *= self.adc_area_scale
-                for a in dir(c):
-                    if "energy" in a:
-                        setattr(c, a, getattr(c, a) * self.adc_energy_scale)
-
-        if not self.comps:
-            logger.error("NeuroSIM returned no components. NeuroSIM output below.")
-            logger.error("\n\nNeuroSIM returned no components. NeuroSIM output below.")
-            logger.error("| " + results.replace("\n", "\n| ") + "  ")
-            if err:
-                logger.error("| " + err.decode("utf-8").replace("\n", "\n| ") + "  ")
-            logger.error("NeuroSIM returned no components. NeuroSIM output above.")
-            raise ValueError(
-                "NeuroSIM returned no components. Check the generated Neurosim input"
-                " config and make sure all values are populated."
-            )
 
         columns_at_once = nvsimget("Columns read at once:", results, False)
         min_latency = nvsimget("Minimum latency per read:", results, False)
@@ -471,6 +455,27 @@ class Crossbar:
                 min_latency,
                 self.cycle_period * 1e9,
             )
+
+        self.min_latency = min_latency
+        self.cols_active_at_once = columns_at_once
+
+        for c in self.comps:
+            if "adc" in c.name:
+                c.area *= self.adc_area_scale
+                for a in dir(c):
+                    if "energy" in a:
+                        setattr(c, a, getattr(c, a) * self.adc_energy_scale)
+
+        if not self.comps:
+            logger.error("NeuroSIM returned no components. NeuroSIM output below.")
+            logger.error("\n\nNeuroSIM returned no components. NeuroSIM output below.")
+            logger.error("| " + results.replace("\n", "\n| ") + "  ")
+            logger.error("NeuroSIM returned no components. NeuroSIM output above.")
+            raise ValueError(
+                "NeuroSIM returned no components. Check the generated Neurosim input"
+                " config and make sure all values are populated."
+            )
+
         # Remove the config file
         os.remove(inputpath)
 
@@ -596,7 +601,13 @@ def rowcol_stats(
     read = read_off + (read_on - read_off) * avg_input
     write = write_on  # Can't gate writes becasuse we still have to reset cells
 
-    latency = crossbar.latency(kind)
+    latency = max(
+        crossbar.min_latency, crossbar.read_pulse_width * crossbar.max_activation_time
+    )
+    if kind == "row":  # Latency per row
+        latency /= crossbar.rows
+    if kind == "col":  # Latency per column
+        latency /= crossbar.cols_active_at_once
 
     return stats2dict(read, write, area, leakage * crossbar.cycle_period, latency)
 
@@ -618,8 +629,6 @@ def row_stats(
     dac_scale = 2 ** (crossbar.voltage_dac_bits - 1) - 1
     stats["Area"] = stats["Area"] + stats_dac["Area"] * dac_scale
     stats["Leakage"] = stats["Leakage"] + stats_dac["Leakage"] * dac_scale
-    stats["Latency"] = max(stats["Latency"], crossbar.read_pulse_width)
-    stats["Latency"] *= crossbar.max_activation_time
     return stats
 
 
@@ -649,12 +658,15 @@ def cell_stats(
     rlscale = crossbar.cell_read_leak_energy_scale
     act_time = crossbar.max_activation_time
     wscale = crossbar.cell_write_energy_scale
+    latency = max(
+        crossbar.min_latency, crossbar.read_pulse_width * crossbar.max_activation_time
+    )
     return stats2dict(
         read_memcell_energy * act_time,
         write_memcell_energy * wscale,
         crossbar.area_per_cell(),
         crossbar.leakage_per_cell() * rlscale,
-        crossbar.max_activation_time * crossbar.read_pulse_width,
+        latency,
     )
 
 

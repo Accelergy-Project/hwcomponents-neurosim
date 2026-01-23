@@ -750,7 +750,9 @@ class FlipFlop(_NeurosimPlugInComponent):
     _get_stats_func = staticmethod(neurointerface.flip_flop_stats)
     _params = ["tech_node", "cycle_period", "n_bits"]
 
-    def __init__(self, tech_node: float, cycle_period: float, n_bits: int, n_instances: int = 1):
+    def __init__(
+        self, tech_node: float, cycle_period: float, n_bits: int, n_instances: int = 1
+    ):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
@@ -860,7 +862,9 @@ class Adder(_NeurosimPlugInComponent):
     _get_stats_func = staticmethod(neurointerface.adder_stats)
     _params = ["tech_node", "cycle_period", "n_bits"]
 
-    def __init__(self, tech_node: float, cycle_period: float, n_bits: int, n_instances: int = 1):
+    def __init__(
+        self, tech_node: float, cycle_period: float, n_bits: int, n_instances: int = 1
+    ):
         super().__init__(
             tech_node=tech_node,
             cycle_period=cycle_period,
@@ -999,7 +1003,12 @@ class MaxPool(_NeurosimPlugInComponent):
     _params = ["tech_node", "cycle_period", "n_bits", "pool_window"]
 
     def __init__(
-        self, tech_node: float, cycle_period: float, n_bits: int, pool_window: int, n_instances: int = 1
+        self,
+        tech_node: float,
+        cycle_period: float,
+        n_bits: int,
+        pool_window: int,
+        n_instances: int = 1,
     ):
         super().__init__(
             tech_node=tech_node,
