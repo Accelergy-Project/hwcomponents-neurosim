@@ -266,8 +266,8 @@ class _NeurosimPlugInComponent(ComponentModel):
 
     def __init__(
         self,
-        cell_config: str,
         tech_node: float,
+        cell_config: str = neurointerface.DEFAULT_CONFIG,
         cycle_period: float = 100e-9,
         rows: int = 32,
         cols: int = 32,
@@ -514,7 +514,12 @@ class _NeurosimPlugInComponent(ComponentModel):
         )
 
         # pJ->J, um^2->m^2
-        rval = {k: v / 1e12 for k, v in rval.items()}
+        rval['Latency'] = rval['Latency'] / 1e9
+        rval['Read Energy'] = rval['Read Energy'] / 1e12
+        rval['Write Energy'] = rval['Write Energy'] / 1e12
+        rval['Area'] = rval['Area'] / 1e12
+        rval['Leakage'] = rval['Leakage'] / 1e12
+        assert len(rval) == 5
 
         return rval
 
@@ -751,7 +756,11 @@ class FlipFlop(_NeurosimPlugInComponent):
     _params = ["tech_node", "cycle_period", "n_bits"]
 
     def __init__(
-        self, tech_node: float, cycle_period: float, n_bits: int, n_instances: int = 1
+        self,
+        tech_node: float,
+        cycle_period: float,
+        n_bits: int,
+        n_instances: int = 1,
     ):
         super().__init__(
             tech_node=tech_node,
