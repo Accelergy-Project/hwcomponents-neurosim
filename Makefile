@@ -4,6 +4,9 @@ build:
 	cd hwcomponents_neurosim && mkdir NeuroSim
 	cp -r hwcomponents_neurosim/DNN_NeuroSim_V1.3/Inference_pytorch/NeuroSIM/* hwcomponents_neurosim/NeuroSim/
 	cd hwcomponents_neurosim && cp -rf drop_in/* ./NeuroSim/
+	if [ "$$(uname -s)" = "Darwin" ]; then \
+		sed -i '' 's/-fopenmp//g' hwcomponents_neurosim/NeuroSim/makefile; \
+	fi
 	cd hwcomponents_neurosim && cd NeuroSim ; make
 
 install:
