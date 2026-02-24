@@ -19,6 +19,23 @@ from setuptools import setup
 from setuptools.command.build import build
 import subprocess
 
+try:
+    from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+
+    class PlatformBdistWheel(_bdist_wheel):
+        """Tag wheel as platform-specific since it contains a compiled binary."""
+
+        def finalize_options(self):
+            super().finalize_options()
+            self.root_is_pure = False
+
+        def get_tag(self):
+            _, _, plat = super().get_tag()
+            return "py3", "none", plat
+
+except ImportError:
+    PlatformBdistWheel = None
+
 
 class CustomBuildCommand(build):
     """Custom build command that runs make build before the normal build process."""
@@ -43,8 +60,8 @@ class CustomBuildCommand(build):
         super().run()
 
 
-setup(
-    cmdclass={
-        "build": CustomBuildCommand,
-    },
-)
+cmdclass = {"build": CustomBuildCommand}
+if PlatformBdistWheel is not None:
+    cmdclass["bdist_wheel"] = PlatformBdistWheel
+
+setup(cmdclass=cmdclass)
