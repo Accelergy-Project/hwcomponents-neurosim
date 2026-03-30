@@ -335,7 +335,7 @@ class Crossbar:
         self.cols = cols
         self.cols_muxed = cols_muxed
         self.tech_node_nm = round(tech_node * 1e9)
-        self.num_output_levels = 2**adc_resolution
+        self.n_output_levels = 2**adc_resolution
         self.has_adc = adc_resolution > 0
         self.read_pulse_width = read_pulse_width
         self.cycle_period = cycle_period
@@ -380,7 +380,7 @@ class Crossbar:
             "cols_muxed",
             "rows",
             "cols",
-            "num_output_levels",
+            "n_output_levels",
             "read_pulse_width",
             "voltage",
             "threshold_voltage",
