@@ -3,6 +3,9 @@ Interface for Neurosim. Exposes row, column, and cell energy in terms of OFF and
 includes integration of cell files from NVSim and NVMExplorer.
 """
 
+import fcntl
+import glob
+import hashlib
 import logging
 from statistics import mean
 import threading
@@ -13,11 +16,53 @@ import subprocess
 import re
 import os
 
-MY_PID = os.getpid()
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "default_config.cfg")
 NEUROSIM_PATH = os.path.join(SCRIPT_DIR, "NeuroSim/main")
-CFG_WRITE_PATH = os.path.join(SCRIPT_DIR, f"./neurosim_input_{MY_PID}.cfg")
+
+
+def _clean_tmp_dir():
+    temp_dir = os.path.join(SCRIPT_DIR, "neurosim_inputs_outputs")
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Skip .lock (persistent, one per hash) and .tmp (in-flight atomic writes).
+    # getctime swallows OSError so a peer's concurrent eviction can't crash us.
+    def ctime(path):
+        try:
+            return os.path.getctime(path)
+        except OSError:
+            return 0
+
+    files = sorted(
+        [
+            f
+            for f in glob.glob(os.path.join(temp_dir, "*"))
+            if not f.endswith((".lock", ".tmp"))
+        ],
+        key=ctime,
+        reverse=True,
+    )
+    if len(files) > 200:
+        for file in files[200:]:
+            # Take the per-hash .lock non-blocking before deleting. If a concurrent
+            # worker holds it, the file is in active use — skip and let the next
+            # call evict it.
+            lock_path = os.path.splitext(file)[0] + ".lock"
+            try:
+                with open(lock_path, "a") as lock_file:
+                    try:
+                        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    except BlockingIOError:
+                        continue
+                    try:
+                        os.remove(file)
+                    except OSError:
+                        pass
+                    fcntl.flock(lock_file, fcntl.LOCK_UN)
+            except OSError:
+                pass
+    return temp_dir
+
 
 # ==================================================================================================
 # NVSIM/NVMEXPLORER -> NEUROSIM TRANSLATIONS
@@ -399,43 +444,66 @@ class Crossbar:
             if "cycle_period" not in to_set[0]:
                 cfg = replace_cfg(to_set[0], to_set[1], cfg, cfgfile, logger)
 
-        # Write config
-        inputpath = os.path.realpath(CFG_WRITE_PATH)
-        with open(inputpath, "w") as f:
-            f.write(cfg)
-        os.chmod(inputpath, 0o777)
+        # Name files by a sha256 of the config. Concurrent callers with the same
+        # hash serialize on the .lock and share the cached .out; different hashes
+        # never collide on the same path.
+        temp_dir = _clean_tmp_dir()
+        input_name = hashlib.sha256(cfg.encode()).hexdigest()
+        input_path = os.path.join(temp_dir, input_name + ".cfg")
+        output_path = os.path.join(temp_dir, input_name + ".out")
+        lock_path = os.path.join(temp_dir, input_name + ".lock")
 
-        # Run
-        logger.info("Running %s %s", NEUROSIM_PATH, inputpath)
-        proc = subprocess.Popen(
-            [NEUROSIM_PATH, inputpath],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy(),
-        )
+        with open(lock_path, "w") as lock_file:
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            try:
+                if os.path.exists(output_path):
+                    with open(output_path, "r") as f:
+                        results = f.read()
+                else:
+                    with open(input_path, "w") as f:
+                        f.write(cfg)
+                    os.chmod(input_path, 0o777)
 
-        def read_pipe_thread(pipe, write_to: list):
-            while proc.poll() is None:
-                write_to.append(pipe.read().decode("utf-8"))
-            write_to.append(pipe.read().decode("utf-8"))
+                    logger.info("Running %s %s", NEUROSIM_PATH, input_path)
+                    proc = subprocess.Popen(
+                        [NEUROSIM_PATH, input_path],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        env=os.environ.copy(),
+                    )
 
-        stdout, stderr = [], []
-        stdout_thread = threading.Thread(
-            target=read_pipe_thread, args=(proc.stdout, stdout)
-        )
-        stderr_thread = threading.Thread(
-            target=read_pipe_thread, args=(proc.stderr, stderr)
-        )
-        stdout_thread.start()
-        stderr_thread.start()
-        stdout_thread.join()
-        stderr_thread.join()
-        stdout, stderr = "".join(stdout), "".join(stderr)
-        if proc.returncode != 0:
-            logger.error("NeuroSIM returned error code %s", proc.returncode)
-            logger.error(stderr)
-            raise ValueError("NeuroSIM returned error code %s", proc.returncode)
-        results = stdout
+                    def read_pipe_thread(pipe, write_to: list):
+                        while proc.poll() is None:
+                            write_to.append(pipe.read().decode("utf-8"))
+                        write_to.append(pipe.read().decode("utf-8"))
+
+                    stdout, stderr = [], []
+                    stdout_thread = threading.Thread(
+                        target=read_pipe_thread, args=(proc.stdout, stdout)
+                    )
+                    stderr_thread = threading.Thread(
+                        target=read_pipe_thread, args=(proc.stderr, stderr)
+                    )
+                    stdout_thread.start()
+                    stderr_thread.start()
+                    stdout_thread.join()
+                    stderr_thread.join()
+                    stdout, stderr = "".join(stdout), "".join(stderr)
+                    if proc.returncode != 0:
+                        logger.error("NeuroSIM returned error code %s", proc.returncode)
+                        logger.error(stderr)
+                        raise ValueError(
+                            "NeuroSIM returned error code %s", proc.returncode
+                        )
+                    results = stdout
+                    # Write-then-rename so a crash mid-write can't leave a partial
+                    # .out that future callers would treat as a cache hit.
+                    tmp_path = output_path + ".tmp"
+                    with open(tmp_path, "w") as f:
+                        f.write(results)
+                    os.replace(tmp_path, output_path)
+            finally:
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
         logger.debug("NeuroSIM output:\n" + results)
         self.comps = [
             Component(line) for line in results.split("\n") if "<COMPONENT>" in line
@@ -475,9 +543,6 @@ class Crossbar:
                 "NeuroSIM returned no components. Check the generated Neurosim input"
                 " config and make sure all values are populated."
             )
-
-        # Remove the config file
-        os.remove(inputpath)
 
     def get_components(self, read: bool, hi: bool) -> List[Component]:
         """Returns a list of components matching the criteria"""
