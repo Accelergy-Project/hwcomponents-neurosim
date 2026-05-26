@@ -456,54 +456,90 @@ class Crossbar:
         with open(lock_path, "w") as lock_file:
             fcntl.flock(lock_file, fcntl.LOCK_EX)
             try:
-                if os.path.exists(output_path):
-                    with open(output_path, "r") as f:
-                        results = f.read()
-                else:
-                    with open(input_path, "w") as f:
-                        f.write(cfg)
-                    os.chmod(input_path, 0o777)
-
-                    logger.info("Running %s %s", NEUROSIM_PATH, input_path)
-                    proc = subprocess.Popen(
-                        [NEUROSIM_PATH, input_path],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        env=os.environ.copy(),
-                    )
-
-                    def read_pipe_thread(pipe, write_to: list):
-                        while proc.poll() is None:
-                            write_to.append(pipe.read().decode("utf-8"))
-                        write_to.append(pipe.read().decode("utf-8"))
-
-                    stdout, stderr = [], []
-                    stdout_thread = threading.Thread(
-                        target=read_pipe_thread, args=(proc.stdout, stdout)
-                    )
-                    stderr_thread = threading.Thread(
-                        target=read_pipe_thread, args=(proc.stderr, stderr)
-                    )
-                    stdout_thread.start()
-                    stderr_thread.start()
-                    stdout_thread.join()
-                    stderr_thread.join()
-                    stdout, stderr = "".join(stdout), "".join(stderr)
-                    if proc.returncode != 0:
-                        logger.error("NeuroSIM returned error code %s", proc.returncode)
-                        logger.error(stderr)
-                        raise ValueError(
-                            "NeuroSIM returned error code %s", proc.returncode
+                # Try the cache once; if parsing the cached .out fails, drop it
+                # and rerun in case it was a transient bad result.
+                for from_cache in (True, False):
+                    if from_cache and not os.path.exists(output_path):
+                        continue
+                    if from_cache:
+                        with open(output_path, "r") as f:
+                            results = f.read()
+                    else:
+                        results = self._call_neurosim(
+                            cfg, input_path, output_path, logger
                         )
-                    results = stdout
-                    # Write-then-rename so a crash mid-write can't leave a partial
-                    # .out that future callers would treat as a cache hit.
-                    tmp_path = output_path + ".tmp"
-                    with open(tmp_path, "w") as f:
-                        f.write(results)
-                    os.replace(tmp_path, output_path)
+                    try:
+                        self._parse_output(results, logger)
+                        break
+                    except Exception as e:
+                        if not from_cache:
+                            raise
+                        logger.warning(
+                            "Cached NeuroSim output at %s is invalid: %s. "
+                            "Deleting and rerunning.",
+                            output_path,
+                            e,
+                        )
+                        try:
+                            os.remove(output_path)
+                        except OSError:
+                            pass
             finally:
                 fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+    def _call_neurosim(
+        self,
+        cfg: str,
+        input_path: str,
+        output_path: str,
+        logger: logging.Logger,
+    ) -> str:
+        """Runs NeuroSim, writes stdout to the cache, and returns it."""
+        with open(input_path, "w") as f:
+            f.write(cfg)
+        os.chmod(input_path, 0o777)
+
+        logger.info("Running %s %s", NEUROSIM_PATH, input_path)
+        proc = subprocess.Popen(
+            [NEUROSIM_PATH, input_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy(),
+        )
+
+        def read_pipe_thread(pipe, write_to: list):
+            while proc.poll() is None:
+                write_to.append(pipe.read().decode("utf-8"))
+            write_to.append(pipe.read().decode("utf-8"))
+
+        stdout, stderr = [], []
+        stdout_thread = threading.Thread(
+            target=read_pipe_thread, args=(proc.stdout, stdout)
+        )
+        stderr_thread = threading.Thread(
+            target=read_pipe_thread, args=(proc.stderr, stderr)
+        )
+        stdout_thread.start()
+        stderr_thread.start()
+        stdout_thread.join()
+        stderr_thread.join()
+        stdout, stderr = "".join(stdout), "".join(stderr)
+        if proc.returncode != 0:
+            logger.error("NeuroSIM returned error code %s", proc.returncode)
+            logger.error(stderr)
+            raise ValueError(
+                "NeuroSIM returned error code %s", proc.returncode
+            )
+        # Write-then-rename so a crash mid-write can't leave a partial
+        # .out that future callers would treat as a cache hit.
+        tmp_path = output_path + ".tmp"
+        with open(tmp_path, "w") as f:
+            f.write(stdout)
+        os.replace(tmp_path, output_path)
+        return stdout
+
+    def _parse_output(self, results: str, logger: logging.Logger):
+        """Populates component data from NeuroSim output. Raises if malformed."""
         logger.debug("NeuroSIM output:\n" + results)
         self.comps = [
             Component(line) for line in results.split("\n") if "<COMPONENT>" in line
