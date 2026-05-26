@@ -701,7 +701,7 @@ def rowcol_stats(
     if kind == "col":  # Latency per column
         latency /= crossbar.cols_active_at_once
 
-    return stats2dict(read, write, area, leakage * crossbar.cycle_period, latency)
+    return stats2dict(read, write, area, leakage, latency)
 
 
 def row_stats(
