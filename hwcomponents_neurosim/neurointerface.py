@@ -330,7 +330,7 @@ class Component:
 
         self.activation_energy, self.energy_per_row, self.energy_per_col = x(), x(), x()
         self.energy_per_cell, self.area, self.leakage = x(), x(), x()
-        self.latency = x()
+        self.latency = x() / 1e3 # ps -> ns
 
 
 def replace_cfg(
@@ -584,26 +584,20 @@ class Crossbar:
         return sum(c.area for c in self.comps if c.read and "memcell cellhi" in c.name)
 
     def leakage_peripheral(self) -> float:
-        """Returns the leakage of all peripherals."""
+        """Returns the leakage power of all peripherals in Watts."""
         # Grab from the read section because read section has all components. Only 'row' or 'col'
         # components to exlude array (which has everything plus extras we don't want) and cells
-        return (
-            sum(
-                c.leakage
-                for c in self.comps
-                if "row" in c.name or "col" in c.name and c.read
-            )
-            * self.cycle_period
+        return sum(
+            c.leakage
+            for c in self.comps
+            if "row" in c.name or "col" in c.name and c.read
         )
 
     def leakage_per_cell(self) -> float:
-        """Returns the leakage of a single cell."""
+        """Returns the leakage power of a single cell in Watts."""
         # Cell leakage is reported several places. Here we just grab it in the write section for a
         # HI cell.
-        return (
-            sum(c.leakage for c in self.comps if c.read and "memcell cellhi" in c.name)
-            * self.cycle_period
-        )
+        return sum(c.leakage for c in self.comps if c.read and "memcell cellhi" in c.name)
 
     def activation_energy(self, target: str) -> float:
         """Returns the energy of a given misc component."""
@@ -620,12 +614,9 @@ class Crossbar:
         return sum(c.area for c in comps if target.lower() in c.name)
 
     def leakage(self, target: str) -> float:
-        """Returns the leakage of a given misc component."""
+        """Returns the leakage power of a given misc component in Watts."""
         comps = self.get_components(True, True)
-        return (
-            sum(c.leakage for c in comps if target.lower() in c.name)
-            * self.cycle_period
-        )
+        return sum(c.leakage for c in comps if target.lower() in c.name)
 
     def latency(self, target: str) -> float:
         """Returns the latency of a given misc component."""

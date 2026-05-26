@@ -485,8 +485,13 @@ class _NeurosimPlugInComponent(ComponentModel):
         hi = min(p for p in PERMITTED_TECH_NODES if p >= t)
         lo = max(p for p in PERMITTED_TECH_NODES if p <= t)
         interp_pt = (t - lo) / (hi - lo) if hi - lo else 0
-        hi_crossbar = self.build_crossbar(overrides={"tech_node": hi})
-        lo_crossbar = self.build_crossbar(overrides={"tech_node": lo})
+        adc_res = to_pass.get("adc_resolution", self.adc_resolution)
+        hi_crossbar = self.build_crossbar(
+            overrides={"tech_node": hi, "adc_resolution": adc_res}
+        )
+        lo_crossbar = self.build_crossbar(
+            overrides={"tech_node": lo, "adc_resolution": adc_res}
+        )
         hi_est = callfunc(
             hi_crossbar, to_pass["average_input_value"], to_pass["average_cell_value"]
         )
@@ -1438,6 +1443,15 @@ class MemoryCell(_NeurosimPIMComponent):
     component_name = ["MemoryCell", "NeuroSimMemoryCell"]
     _get_stats_func = staticmethod(neurointerface.cell_stats)
 
+    @action
+    def read(self) -> tuple[float, float]:
+        vals = self.query_neurosim(self._get_component_name(), self.logger)
+        return vals["Read Energy"], self.cycle_period
+
+    @action
+    def write(self) -> tuple[float, float]:
+        vals = self.query_neurosim(self._get_component_name(), self.logger)
+        return vals["Write Energy"], self.cycle_period
 
 # ==================================================================================================
 # Input Parsing
