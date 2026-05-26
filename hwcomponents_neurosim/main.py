@@ -519,7 +519,7 @@ class _NeurosimPlugInComponent(ComponentModel):
         )
 
         # pJ->J, um^2->m^2
-        rval['Latency'] = rval['Latency'] / 1e9
+        rval['Latency'] = rval['Latency'] / 1e12
         rval['Read Energy'] = rval['Read Energy'] / 1e12
         rval['Write Energy'] = rval['Write Energy'] / 1e12
         rval['Area'] = rval['Area'] / 1e12

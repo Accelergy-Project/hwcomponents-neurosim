@@ -330,7 +330,7 @@ class Component:
 
         self.activation_energy, self.energy_per_row, self.energy_per_col = x(), x(), x()
         self.energy_per_cell, self.area, self.leakage = x(), x(), x()
-        self.latency = x() / 1e3 # ps -> ns
+        self.latency = x()
 
 
 def replace_cfg(
@@ -552,12 +552,12 @@ class Crossbar:
             min_latency,
             columns_at_once,
         )
-        if min_latency < self.cycle_period * 1e9:
+        if min_latency < self.cycle_period * 1e12:
             logger.warning(
-                "Minimum crossbar latency of %s ns is less than the cycle "
-                "time of %s ns.",
+                "Minimum crossbar latency of %s ps is less than the cycle "
+                "time of %s ps.",
                 min_latency,
-                self.cycle_period * 1e9,
+                self.cycle_period * 1e12,
             )
 
         self.min_latency = min_latency
