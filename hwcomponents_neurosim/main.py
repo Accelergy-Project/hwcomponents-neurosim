@@ -7,7 +7,7 @@ from typing import Dict
 from textwrap import dedent
 
 from hwcomponents.scaling import linear, reciprocal
-from hwcomponents import ComponentModel, action
+from hwcomponents import ComponentModel, action, ActionCost
 import hwcomponents_neurosim.neurointerface as neurointerface
 
 # ==================================================================================================
@@ -322,6 +322,7 @@ class _NeurosimPlugInComponent(ComponentModel):
             1,
             area_scale_function=linear,
             latency_scale_function=reciprocal,
+            throughput_scale_function=linear,
             leak_power_scale_function=linear,
         )
 
@@ -519,11 +520,11 @@ class _NeurosimPlugInComponent(ComponentModel):
         )
 
         # pJ->J, um^2->m^2
-        rval['Latency'] = rval['Latency'] / 1e12
-        rval['Read Energy'] = rval['Read Energy'] / 1e12
-        rval['Write Energy'] = rval['Write Energy'] / 1e12
-        rval['Area'] = rval['Area'] / 1e12
-        rval['Leakage'] = rval['Leakage'] / 1e12
+        rval["Latency"] = rval["Latency"] / 1e12
+        rval["Read Energy"] = rval["Read Energy"] / 1e12
+        rval["Write Energy"] = rval["Write Energy"] / 1e12
+        rval["Area"] = rval["Area"] / 1e12
+        rval["Leakage"] = rval["Leakage"] / 1e12
         assert len(rval) == 5
 
         return rval
@@ -573,29 +574,39 @@ class _NeurosimPlugInComponent(ComponentModel):
             return self.component_name[0]
 
     @action
-    def read(self) -> tuple[float, float]:
+    def read(self) -> ActionCost:
         vals = self.query_neurosim(self._get_component_name(), self.logger)
-        return vals["Read Energy"], vals["Latency"]
+        l = vals["Latency"]
+        return ActionCost(
+            energy=vals["Read Energy"],
+            throughput=float("inf") if l == 0 else 1 / l,
+            latency=l,
+        )
 
     @action
-    def compute(self) -> tuple[float, float]:
+    def compute(self) -> ActionCost:
         return self.read()
 
     @action
-    def add(self) -> tuple[float, float]:
+    def add(self) -> ActionCost:
         return self.read()
 
     @action
-    def convert(self) -> tuple[float, float]:
+    def convert(self) -> ActionCost:
         return self.read()
 
     @action
-    def write(self) -> tuple[float, float]:
+    def write(self) -> ActionCost:
         vals = self.query_neurosim(self._get_component_name(), self.logger)
-        return vals["Write Energy"], vals["Latency"]
+        l = vals["Latency"]
+        return ActionCost(
+            energy=vals["Write Energy"],
+            throughput=float("inf") if l == 0 else 1 / l,
+            latency=l,
+        )
 
     @action
-    def update(self) -> tuple[float, float]:
+    def update(self) -> ActionCost:
         return self.write()
 
 
@@ -634,7 +645,7 @@ class NORGate(_NeurosimPlugInComponent):
         )
 
     @action
-    def read(self) -> tuple[float, float]:
+    def read(self) -> ActionCost:
         """
         Returns the energy for one NOR operation in Joules.
 
@@ -680,7 +691,7 @@ class NANDGate(_NeurosimPlugInComponent):
         )
 
     @action
-    def read(self) -> tuple[float, float]:
+    def read(self) -> ActionCost:
         """
         Returns the energy and latency for one NAND operation.
         """
@@ -722,7 +733,7 @@ class NOTGate(_NeurosimPlugInComponent):
         )
 
     @action
-    def read(self) -> tuple[float, float]:
+    def read(self) -> ActionCost:
         """
         Returns the energy and latency for one NOT operation.
         """
@@ -774,13 +785,13 @@ class FlipFlop(_NeurosimPlugInComponent):
             n_instances=n_instances,
         )
 
-    def read(self) -> tuple[float, float]:
+    def read(self) -> ActionCost:
         """
         Returns the energy and latency for one flip-flop read operation.
         """
         return super().read()
 
-    def write(self) -> tuple[float, float]:
+    def write(self) -> ActionCost:
         """
         Returns the energy and latency for one flip-flop write operation.
         """
@@ -838,7 +849,7 @@ class Mux(_NeurosimPlugInComponent):
             n_instances=n_instances,
         )
 
-    def read(self) -> tuple[float, float]:
+    def read(self) -> ActionCost:
         """
         Returns the energy and latency for one muxing operation.
         """
@@ -886,7 +897,7 @@ class Adder(_NeurosimPlugInComponent):
             n_instances=n_instances,
         )
 
-    def add(self) -> tuple[float, float]:
+    def add(self) -> ActionCost:
         """
         Returns the energy for one addition operation in Joules.
 
@@ -896,7 +907,7 @@ class Adder(_NeurosimPlugInComponent):
         """
         return super().add()
 
-    def read(self) -> tuple[float, float]:
+    def read(self) -> ActionCost:
         """
         Returns the energy for one addition operation in Joules.
 
@@ -959,7 +970,7 @@ class AdderTree(_NeurosimPlugInComponent):
         )
 
     @action
-    def add(self) -> tuple[float, float]:
+    def add(self) -> ActionCost:
         """
         Returns the energy for one addition operation in Joules.
 
@@ -970,7 +981,7 @@ class AdderTree(_NeurosimPlugInComponent):
         return super().add()
 
     @action
-    def read(self) -> tuple[float, float]:
+    def read(self) -> ActionCost:
         """
         Returns the energy for one addition operation in Joules.
 
@@ -1087,21 +1098,21 @@ class ShiftAdd(_NeurosimPlugInComponent):
         )
 
     @action
-    def read(self) -> tuple[float, float]:
+    def read(self) -> ActionCost:
         """
         Returns the energy and latency to read the shift-and-add unit's output.
         """
         return super().read()
 
     @action
-    def write(self) -> tuple[float, float]:
+    def write(self) -> ActionCost:
         """
         Returns the energy and latency to shift-and-add.
         """
         return super().shift_add()
 
     @action
-    def shift_add(self) -> tuple[float, float]:
+    def shift_add(self) -> ActionCost:
         """
         Returns the energy and latency to shift-and-add.
         """
@@ -1444,14 +1455,23 @@ class MemoryCell(_NeurosimPIMComponent):
     _get_stats_func = staticmethod(neurointerface.cell_stats)
 
     @action
-    def read(self) -> tuple[float, float]:
+    def read(self) -> ActionCost:
         vals = self.query_neurosim(self._get_component_name(), self.logger)
-        return vals["Read Energy"], self.cycle_period
+        return ActionCost(
+            energy=vals["Read Energy"],
+            throughput=1 / self.cycle_period,
+            latency=self.cycle_period,
+        )
 
     @action
-    def write(self) -> tuple[float, float]:
+    def write(self) -> ActionCost:
         vals = self.query_neurosim(self._get_component_name(), self.logger)
-        return vals["Write Energy"], self.cycle_period
+        return ActionCost(
+            energy=vals["Write Energy"],
+            throughput=1 / self.cycle_period,
+            latency=self.cycle_period,
+        )
+
 
 # ==================================================================================================
 # Input Parsing

@@ -527,9 +527,7 @@ class Crossbar:
         if proc.returncode != 0:
             logger.error("NeuroSIM returned error code %s", proc.returncode)
             logger.error(stderr)
-            raise ValueError(
-                "NeuroSIM returned error code %s", proc.returncode
-            )
+            raise ValueError("NeuroSIM returned error code %s", proc.returncode)
         # Write-then-rename so a crash mid-write can't leave a partial
         # .out that future callers would treat as a cache hit.
         tmp_path = output_path + ".tmp"
@@ -633,7 +631,9 @@ class Crossbar:
         """Returns the leakage power of a single cell in Watts."""
         # Cell leakage is reported several places. Here we just grab it in the write section for a
         # HI cell.
-        return sum(c.leakage for c in self.comps if c.read and "memcell cellhi" in c.name)
+        return sum(
+            c.leakage for c in self.comps if c.read and "memcell cellhi" in c.name
+        )
 
     def activation_energy(self, target: str) -> float:
         """Returns the energy of a given misc component."""
