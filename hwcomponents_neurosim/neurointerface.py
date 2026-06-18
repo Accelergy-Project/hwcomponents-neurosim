@@ -69,6 +69,7 @@ def _clean_tmp_dir():
 # ==================================================================================================
 
 PARSED = {}
+_BUILDCFG_LOCK = threading.Lock()
 
 # These should all be found in the NVSim config file
 NV_TO_NEURO_TERNARIES = {
@@ -239,6 +240,14 @@ def buildcfg(
     cellpath: str, cfgpath: str, logger: logging.Logger
 ) -> Tuple[str, Dict[str, float]]:
     """Populates a Neurosim config with the values from the cell file and returns contents"""
+    # Serialize: PARSED is shared module state (see _BUILDCFG_LOCK comment).
+    with _BUILDCFG_LOCK:
+        return _buildcfg(cellpath, cfgpath, logger)
+
+
+def _buildcfg(
+    cellpath: str, cfgpath: str, logger: logging.Logger
+) -> Tuple[str, Dict[str, float]]:
     PARSED.clear()
     other_vars = {}
     fails = {}
