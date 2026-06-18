@@ -354,10 +354,11 @@ class _NeurosimPlugInComponent(ComponentModel):
         attrs.update(overrides)
         key = dict_to_str(attrs)
         if key not in CACHE:
-            CACHE[key] = neurointerface.Crossbar(**attrs)
-            CACHE[key].run_neurosim(
+            xbar = neurointerface.Crossbar(**attrs)
+            xbar.run_neurosim(
                 cell_config, neurointerface.DEFAULT_CONFIG, self.logger, peripheral_args
             )
+            CACHE[key] = xbar
         else:
             self.logger.debug(
                 "Found cached output for %s. If you're looking for the "
