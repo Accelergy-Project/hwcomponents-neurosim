@@ -511,12 +511,14 @@ class _NeurosimPlugInComponent(ComponentModel):
         rval = {k: lo_est[k] + (hi_est[k] - lo_est[k]) * interp_pt for k in hi_est}
         self.logger.debug("NeuroSim returned: %s", rval)
 
-        assert rval["Area"] >= 0, dedent("""
+        assert rval["Area"] >= 0, dedent(
+            """
             NeuroSim returned an area less than zero. This may occur if the array or
             memory cell size is too small for proper layout of peripheral
             components. Try increasing the number of rows/columns or increasing the
             cell size.
-            """)
+            """
+        )
 
         # pJ->J, um^2->m^2
         rval["Latency"] = rval["Latency"] / 1e12
